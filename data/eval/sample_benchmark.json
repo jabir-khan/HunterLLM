@@ -1,0 +1,40 @@
+{
+  "tasks": [
+    {
+      "id": "idor-impact-1",
+      "category": "IDOR",
+      "prompt": "You have two accounts on the same web app. Changing numeric IDs in `/api/user/{id}/profile` returns another user's email and billing tier. Outline how you prove maximum impact for a bounty report while staying in-scope.",
+      "references": [
+        "authorization boundary crossed",
+        "horizontal privilege escalation",
+        "specific identifiers leaked",
+        "business impact",
+        "minimal reproducible steps"
+      ]
+    },
+    {
+      "id": "ssrf-chain-1",
+      "category": "SSRF",
+      "prompt": "An internal HTTP fetch endpoint accepts URLs but blocks obvious localhost strings. Describe attacker-oriented bypass angles (conceptual), then how you'd pivot toward cloud metadata exposure where applicable—in an authorized lab.",
+      "references": [
+        "DNS rebinding",
+        "redirect",
+        "alternative localhost representations",
+        "metadata endpoint",
+        "proof without destructive actions"
+      ]
+    },
+    {
+      "id": "stored-xss-1",
+      "category": "XSS",
+      "prompt": "Stored XSS executes for admins only on an analytics dashboard behind SSO. What proof-of-impact narrative maximizes severity vs generic alert pop?",
+      "references": [
+        "session impact",
+        "administrator trust boundary",
+        "exfiltration primitive",
+        "CSRF chaining",
+        "scoped reproduction"
+      ]
+    }
+  ]
+}

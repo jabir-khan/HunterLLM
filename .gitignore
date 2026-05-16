@@ -1,0 +1,42 @@
+# Local data and trained artifacts (large / regenerable)
+data/
+outputs/
+*.jsonl
+
+# Keep the shipped evaluation benchmark in-repo
+!data/
+!data/eval/
+!data/eval/**
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.so
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Secrets / config
+.env
+.env.*
+
+# Caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.cache/
+
+# Notebooks
+.ipynb_checkpoints/
