@@ -42,6 +42,9 @@ python -c "import torch; assert torch.cuda.is_available(), 'No CUDA GPU detected
 echo "==[2/7] Install package + training extras"
 pip install --upgrade pip wheel
 pip install -e ".[train]"
+# huggingface_hub Xet backend (datasets pushed via hf-push use Xet/CAS storage;
+# without this plugin snapshot_download silently returns 0-byte pointer files).
+pip install -U "huggingface_hub[hf_xet]" hf_xet
 
 echo "==[3/7] HF login"
 python - <<PY
@@ -63,13 +66,23 @@ fi
 echo "==[4/7] Prepare dataset"
 if [[ -n "${HF_DATASET_REPO:-}" ]]; then
   echo "    Pulling dataset from HF: $HF_DATASET_REPO"
-  python -m hunter_llm.infer.hf_pull --repo "$HF_DATASET_REPO" --out data --repo-type dataset
+  # Files are uploaded at the dataset root (sft_train.jsonl, dpo_pairs.jsonl);
+  # the trainers read from data/processed/, so pull straight into that folder.
+  mkdir -p data/processed
+  python -m hunter_llm.infer.hf_pull --repo "$HF_DATASET_REPO" --out data/processed --repo-type dataset
 else
   echo "    No HF_DATASET_REPO set — building dataset on the pod (will clone repos + fetch NVD)"
   python -m hunter_llm.cli bootstrap-data --skip-trickest --full
 fi
 
 ls -la data/processed/ || true
+# Sanity check: training step will fail with a confusing FileNotFoundError if the
+# Xet backend silently downloaded 0-byte pointer files. Bail early instead.
+if [[ ! -s data/processed/sft_train.jsonl ]]; then
+  echo "ERROR: data/processed/sft_train.jsonl missing or empty after dataset pull."
+  echo "       Hint: pip install -U 'huggingface_hub[hf_xet]' hf_xet"
+  exit 1
+fi
 
 echo "==[5/7] SFT QLoRA"
 python -m hunter_llm.train.sft_qlora \
