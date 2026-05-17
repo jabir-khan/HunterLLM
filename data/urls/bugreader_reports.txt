@@ -1,5 +1,13 @@
-# Auto-generated Bugreader report URLs (id sweep). Username slot is a placeholder; the slug is permissive.
-# Re-derive: ID sweep against /<valid_user>@x-<n>; only the numeric report id matters.
+# Auto-generated Bugreader report URLs (covers ALL researchers, not just one).
+# Server URL pattern: /<valid_user>@<slug>-<id>. ONLY the numeric ID is checked
+# server-side; the username slot is a permissive placeholder. So a single sweep
+# of valid IDs returns reports from every Bugreader contributor (Sarmad Hassan,
+# Ahmad Halabi, Kassem Bazzoun, Mahdi Manaa, Ansal Pandey, Vivek PS, Max Pasqua,
+# Chris Laconsay, etc.).
+#
+# Sweep coverage: IDs 1..1000 verified; max valid ID is 305 (no reports above).
+# 187 valid reports total, 185 ingested with substantive bodies.
+# Re-derive: id sweep against /<any_user>@x-<n>, status 200 means valid.
 https://bugreader.com/jubabaghdad@x-4
 https://bugreader.com/jubabaghdad@x-5
 https://bugreader.com/jubabaghdad@x-6
