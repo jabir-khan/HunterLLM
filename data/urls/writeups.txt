@@ -66,3 +66,6 @@ https://www.acunetix.com/blog/
 
 # === OWASP Foundation blog (high-level guidance, not duplicated by repos) ===
 https://owasp.org/news/
+
+# === ysamm.com (individual posts harvested via discover-writeup-urls --preset ysamm-only) ===
+https://ysamm.com/

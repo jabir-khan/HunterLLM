@@ -62,7 +62,7 @@ def fetch_url_text(url: str, timeout: float = 30.0) -> tuple[str, str | None]:
     return text.strip(), title
 
 
-def ingest_url_list(urls_file: Path, out_path: Path, *, progress: bool = True) -> int:
+def ingest_url_list(urls_file: Path, out_path: Path, *, progress: bool = True, append: bool = False) -> int:
     """urls_file: one URL per line. `#` starts a comment, blank lines skipped."""
     urls: list[str] = []
     for ln in urls_file.read_text(encoding="utf-8").splitlines():
@@ -73,7 +73,8 @@ def ingest_url_list(urls_file: Path, out_path: Path, *, progress: bool = True) -
     out_path.parent.mkdir(parents=True, exist_ok=True)
     n = 0
     skipped: list[tuple[str, str]] = []
-    with out_path.open("w", encoding="utf-8") as f:
+    mode = "a" if append and out_path.exists() else "w"
+    with out_path.open(mode, encoding="utf-8") as f:
         for i, url in enumerate(urls, 1):
             host = urlparse(url).netloc
             text, title = fetch_url_text(url)

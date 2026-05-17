@@ -21,6 +21,12 @@ from hunter_llm.collect.github_repos import ingest_repos
 from hunter_llm.collect.mitre_attack import ingest_mitre_attack
 from hunter_llm.collect.nvd_cve import ingest_nvd_long_window, ingest_nvd_window
 from hunter_llm.collect.web_writeups import ingest_url_list
+from hunter_llm.collect.url_discovery import (
+    dedupe_urls,
+    discover_ysamm_post_urls,
+    discover_urls_from_feed_file,
+    normalize_trackable_url,
+)
 from hunter_llm.preprocess.dpo_export import sft_jsonl_to_dpo_jsonl
 from hunter_llm.preprocess.pipeline import build_curated_dataset
 
@@ -71,12 +77,102 @@ def collect_nvd(
 def collect_urls(
     urls_file: Path = typer.Argument(..., exists=True, readable=True),
     out: Path | None = typer.Option(None),
+    append: bool = typer.Option(False, help="Append JSONL rows to existing file instead of replacing it"),
 ):
     """Fetch and extract write-ups from an allowlisted URL list (respect robots / terms)."""
     out_path = out or (settings.raw_dir / "urls_writeups.jsonl")
     console.print(f"[bold]Ingesting URLs[/bold] from {urls_file}")
-    n = ingest_url_list(urls_file, out_path)
+    n = ingest_url_list(urls_file, out_path, append=append)
     console.print(f"[green]Kept[/green] {n} non-trivial articles")
+
+
+def _comma_sep_paths(csv: str | None) -> list[Path]:
+    if not csv:
+        return []
+    return [Path(x.strip().expanduser()) for x in csv.split(",") if x.strip()]
+
+
+def _comma_host_suffixes(csv: str | None) -> tuple[str, ...] | None:
+    if not csv:
+        return None
+    tup = tuple(x.strip() for x in csv.split(",") if x.strip())
+    return tup or None
+
+
+@app.command("discover-writeup-urls")
+def discover_writeup_urls(
+    preset: str = typer.Option(
+        "combined",
+        "--preset",
+        help="combined | ysamm-only | rss-only",
+    ),
+    feeds_file: Path = typer.Option(
+        Path("data/urls/medium_feeds.txt"),
+        "--feeds-file",
+        help="One RSS/Atom URL per line (Medium tag feeds); ignored when --preset ysamm-only",
+    ),
+    out: Path = typer.Option(
+        Path("data/urls/discovered_writeups.txt"),
+        "--out",
+        help="One URL per line for collect-urls",
+    ),
+    rss_host_only: str | None = typer.Option(
+        None,
+        "--rss-host-only",
+        help="Comma host suffix filters for RSS links only (e.g. medium.com)",
+    ),
+    merge_with: str | None = typer.Option(
+        None,
+        "--merge-with",
+        help="Comma-separated URL list files merged after discovery",
+    ),
+):
+    """Discover permalinks (ysamm.com + Medium tag RSS). See data/urls/BUGREADER.md for Bugreader limits."""
+    pl = preset.strip().lower().replace("-", "_")
+    filt = _comma_host_suffixes(rss_host_only)
+    acc: list[str] = []
+
+    if pl == "combined":
+        y = discover_ysamm_post_urls()
+        console.print(f"[dim]Ysamm homepage posts[/dim] {len(y)}")
+        acc.extend(y)
+        if not feeds_file.is_file():
+            console.print(f"[red]Missing feeds file[/red] {feeds_file}")
+            raise typer.Exit(code=1)
+        rss = discover_urls_from_feed_file(feeds_file, rss_host_suffixes=filt)
+        console.print(f"[dim]RSS feed links[/dim] {len(rss)}")
+        acc.extend(rss)
+    elif pl == "ysamm_only":
+        y = discover_ysamm_post_urls()
+        console.print(f"[dim]Ysamm homepage posts[/dim] {len(y)}")
+        acc.extend(y)
+    elif pl == "rss_only":
+        if not feeds_file.is_file():
+            console.print(f"[red]Missing feeds file[/red] {feeds_file}")
+            raise typer.Exit(code=1)
+        rss = discover_urls_from_feed_file(feeds_file, rss_host_suffixes=filt)
+        console.print(f"[dim]RSS feed links[/dim] {len(rss)}")
+        acc.extend(rss)
+    else:
+        console.print("[red]Use --preset combined | ysamm-only | rss-only[/red]")
+        raise typer.Exit(code=1)
+
+    for fp in _comma_sep_paths(merge_with):
+        if not fp.is_file():
+            console.print(f"[yellow]skip missing[/yellow] {fp}")
+            continue
+        extra = 0
+        for ln in fp.read_text(encoding="utf-8").splitlines():
+            s = ln.strip()
+            if s.startswith(("http://", "https://")):
+                acc.append(normalize_trackable_url(s))
+                extra += 1
+        console.print(f"[dim]Merged[/dim] {fp.name}: +{extra} lines")
+
+    acc = dedupe_urls(acc)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(acc) + ("\n" if acc else ""), encoding="utf-8")
+    console.print(f"[green]Wrote[/green] {len(acc)} URLs → {out}")
 
 
 @app.command("collect-cisa-kev")

@@ -1,0 +1,10 @@
+# Medium tag RSS feeds (each line is a feed URL, not a story).
+# Official pattern: https://medium.com/feed/tag/<tag-name>
+# Tag pages in the browser: https://medium.com/tag/<tag-name>
+
+https://medium.com/feed/tag/bug-bounty
+https://medium.com/feed/tag/facebook-bug-bounty
+https://medium.com/feed/tag/meta-bug-bounty
+https://medium.com/feed/tag/web-security
+https://medium.com/feed/tag/ethical-hacking
+https://medium.com/feed/tag/penetration-testing

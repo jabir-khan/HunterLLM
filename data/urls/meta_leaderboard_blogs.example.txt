@@ -1,0 +1,8 @@
+# Optional: paste public blog / Medium / personal-site URLs for researchers you find on the
+# Meta bug bounty leaderboard: https://bugbounty.meta.com/leaderboard/
+#
+# One HTTPS URL per line. Only add sources you are allowed to scrape or whose terms permit use.
+#
+# Examples (replace with your own curated list):
+# https://ysamm.com/uncategorized/2026/01/17/math-random-facebook-sdk.html
+# https://medium.com/@some-researcher/some-public-writeup

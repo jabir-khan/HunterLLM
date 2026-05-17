@@ -143,6 +143,10 @@ Pull the merged adapter back to a local machine to chat with it from anywhere.
 - **OWASP/CheatSheetSeries** (CC-BY-SA-4.0)
 - **trickest/cve** (GPL-3.0 — excluded by default; pass `--skip-trickest=false` to include)
 - User-supplied URL lists for blog write-ups (you are responsible for ensuring you have rights to ingest them).
+- Static blogs discoverable via `hunter-llm discover-writeup-urls`: e.g. [ysamm.com](https://ysamm.com/) (Facebook bug bounty write-ups).
+- Medium tag RSS feeds curated in `data/urls/medium_feeds.txt` (use `--rss-host-only medium.com` to drop syndicated off-site URLs).
+- [Bugreader reports](https://bugreader.com/reports): client-rendered listings; ingest only URLs you add manually (`data/urls/BUGREADER.md`).
+- [Meta bug bounty leaderboard](https://bugbounty.meta.com/leaderboard/) researchers — add public blog URLs to a text list (template: `meta_leaderboard_blogs.example.txt`).
 
 Per-sample provenance is tracked in the `meta` field of every generated instruction row.
 
@@ -156,6 +160,7 @@ hunter-llm collect-nvd                # NVD lookback (use --years N for monthly 
 hunter-llm collect-cisa-kev           # CISA Known Exploited Vulnerabilities catalog
 hunter-llm collect-mitre-attack       # MITRE ATT&CK Enterprise TTPs
 hunter-llm collect-urls FILE          # extract write-ups from URL list -> raw JSONL
+hunter-llm discover-writeup-urls     # ysamm permalinks + Medium RSS → URL list (--append on collect-urls)
 hunter-llm build-dataset              # instruction synth + quality + dedup -> SFT JSONL
 hunter-llm export-dpo                 # synthesize chosen/rejected pairs -> DPO JSONL
 hunter-llm rag-build PATH             # embed JSONL into a retrieval index
