@@ -75,10 +75,7 @@ def ingest_nvd_window(
     out_path: Path,
     end: datetime | None = None,
 ) -> int:
-    """
-    Pull CVEs published in the last `days` days and write JSONL of raw_record summaries.
-    Without an API key, stay within NVD public rate limits (pause_sec).
-    """
+    """Pull CVEs published in the last `days` days and write JSONL of raw_record summaries."""
     end = end or datetime.now(timezone.utc)
     start = end - timedelta(days=days)
     settings.raw_dir.mkdir(parents=True, exist_ok=True)
@@ -93,4 +90,51 @@ def ingest_nvd_window(
                 continue
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
             n += 1
+    return n
+
+
+def _month_windows(start: datetime, end: datetime) -> list[tuple[datetime, datetime]]:
+    """Yield ~monthly (~30 day) [a, b) windows from start to end. NVD enforces a 120-day cap."""
+    windows: list[tuple[datetime, datetime]] = []
+    cur = start
+    step = timedelta(days=30)
+    while cur < end:
+        nxt = min(cur + step, end)
+        windows.append((cur, nxt))
+        cur = nxt
+    return windows
+
+
+def ingest_nvd_long_window(
+    years: float,
+    out_path: Path,
+    end: datetime | None = None,
+    sleep_between_chunks: float = 1.0,
+    progress: bool = True,
+) -> int:
+    """Fetch the last `years` years of CVEs, paginated into ~30-day chunks (NVD caps at 120d).
+
+    Writes a single JSONL stream to `out_path`. Resilient to transient errors per chunk.
+    """
+    end = end or datetime.now(timezone.utc)
+    start = end - timedelta(days=int(years * 365))
+    windows = _month_windows(start, end)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    n = 0
+    with httpx.Client() as client, out_path.open("w", encoding="utf-8") as f:
+        for i, (a, b) in enumerate(windows, 1):
+            if progress:
+                print(f"  [nvd] {i}/{len(windows)}  {a.date()} -> {b.date()}", flush=True)
+            try:
+                vulns = fetch_cves_for_date_range(a, b, client)
+            except (httpx.HTTPError, httpx.HTTPStatusError) as e:
+                print(f"  [nvd] chunk failed ({e}); continuing")
+                vulns = []
+            for v in vulns:
+                rec = vulnerability_to_raw_record(v)
+                if not rec["description"].strip():
+                    continue
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                n += 1
+            time.sleep(sleep_between_chunks)
     return n

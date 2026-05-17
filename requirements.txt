@@ -1,4 +1,5 @@
-# Core pipeline (CPU OK)
+# Core data pipeline (CPU OK on macOS)
+python-dotenv>=1.0.0
 httpx>=0.27.0
 pydantic>=2.0
 pydantic-settings>=2.0
@@ -8,11 +9,15 @@ tqdm>=4.66.0
 trafilatura>=1.9.0
 datasketch>=1.6.5
 datasets>=2.18.0
-# Fine-tuning (GPU; versions pinned loosely — align with your CUDA)
-transformers>=4.40.0
-accelerate>=0.28.0
-bitsandbytes>=0.43.0
-peft>=0.10.0
-trl>=0.8.0
-# Optional RAG (embedding index): numpy sentence-transformers
-# Optional: pip install "unsloth[cu121] @ git+https://github.com/unslothai/unsloth.git"
+huggingface_hub>=0.23.0
+
+# Optional retrieval (CPU OK):
+#   pip install numpy sentence-transformers
+#
+# Full training stack (CUDA Linux only):
+#   pip install -e .[train]
+# This installs: torch, transformers, accelerate, peft, trl,
+# bitsandbytes, sentencepiece, wandb.
+#
+# Optional Unsloth (faster QLoRA):
+#   pip install "unsloth @ git+https://github.com/unslothai/unsloth.git"

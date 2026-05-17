@@ -11,9 +11,15 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from hunter_llm.load_dotenv_utils import load_dotenv_if_present
+
+load_dotenv_if_present()
+
 from hunter_llm.config import DEFAULT_REPOS, settings
+from hunter_llm.collect.cisa_kev import ingest_cisa_kev
 from hunter_llm.collect.github_repos import ingest_repos
-from hunter_llm.collect.nvd_cve import ingest_nvd_window
+from hunter_llm.collect.mitre_attack import ingest_mitre_attack
+from hunter_llm.collect.nvd_cve import ingest_nvd_long_window, ingest_nvd_window
 from hunter_llm.collect.web_writeups import ingest_url_list
 from hunter_llm.preprocess.dpo_export import sft_jsonl_to_dpo_jsonl
 from hunter_llm.preprocess.pipeline import build_curated_dataset
@@ -31,19 +37,33 @@ def collect_github(
     repos = [r for r in DEFAULT_REPOS if not (skip_trickest and r["repo"] == "cve")]
     out_path = out or (settings.raw_dir / "github_files.jsonl")
     console.print(f"[bold]Cloning / updating[/bold] {len(repos)} repos → {out_path}")
-    n = ingest_repos(repos, out_path)
-    console.print(f"[green]Wrote[/green] {n} records")
+    counts = ingest_repos(repos, out_path)
+    table = Table(title="GitHub ingest")
+    table.add_column("repo")
+    table.add_column("records", justify="right")
+    for k, v in counts.items():
+        table.add_row(k, str(v))
+    console.print(table)
+    console.print(f"[green]Total[/green] {sum(counts.values())} records")
 
 
 @app.command("collect-nvd")
 def collect_nvd(
-    days: int = typer.Option(30, help="Lookback window for published CVEs"),
+    days: int = typer.Option(30, help="Short lookback window (days). Ignored if --years is given."),
+    years: float | None = typer.Option(
+        None,
+        help="Long-window mode: paginate the last N years of CVEs in monthly chunks.",
+    ),
     out: Path | None = typer.Option(None),
 ):
-    """Pull CVE summaries from NVD API 2.0 (requires respecting rate limits; optional API key)."""
+    """Pull CVE summaries from NVD API 2.0 (rate-limit friendly; HUNTER_NVD_API_KEY recommended for --years)."""
     out_path = out or (settings.raw_dir / "nvd_cves.jsonl")
-    console.print(f"[bold]Fetching NVD[/bold] last {days} days → {out_path}")
-    n = ingest_nvd_window(days, out_path)
+    if years and years > 0:
+        console.print(f"[bold]Fetching NVD[/bold] last {years} years (monthly chunks) → {out_path}")
+        n = ingest_nvd_long_window(years, out_path)
+    else:
+        console.print(f"[bold]Fetching NVD[/bold] last {days} days → {out_path}")
+        n = ingest_nvd_window(days, out_path)
     console.print(f"[green]Wrote[/green] {n} CVE records")
 
 
@@ -57,6 +77,28 @@ def collect_urls(
     console.print(f"[bold]Ingesting URLs[/bold] from {urls_file}")
     n = ingest_url_list(urls_file, out_path)
     console.print(f"[green]Kept[/green] {n} non-trivial articles")
+
+
+@app.command("collect-cisa-kev")
+def collect_cisa_kev(
+    out: Path | None = typer.Option(None),
+):
+    """Fetch CISA Known Exploited Vulnerabilities catalog (public domain, daily)."""
+    out_path = out or (settings.raw_dir / "cisa_kev.jsonl")
+    console.print(f"[bold]Fetching CISA KEV[/bold] → {out_path}")
+    n = ingest_cisa_kev(out_path)
+    console.print(f"[green]Wrote[/green] {n} KEV entries")
+
+
+@app.command("collect-mitre-attack")
+def collect_mitre_attack(
+    out: Path | None = typer.Option(None),
+):
+    """Fetch MITRE ATT&CK enterprise techniques bundle (Apache-2.0)."""
+    out_path = out or (settings.raw_dir / "mitre_attack.jsonl")
+    console.print(f"[bold]Fetching MITRE ATT&CK[/bold] → {out_path}")
+    n = ingest_mitre_attack(out_path)
+    console.print(f"[green]Wrote[/green] {n} techniques")
 
 
 @app.command("build-dataset")
@@ -160,17 +202,66 @@ def eval_benchmark(
 def bootstrap_data(
     skip_github: bool = typer.Option(False, help="Skip large repo clones"),
     skip_trickest: bool = typer.Option(True, help="Exclude GPL trickest/cve when cloning"),
-    nvd_days: int = typer.Option(90),
+    nvd_days: int = typer.Option(90, help="Short NVD window in days (used when --years not set)"),
+    years: float | None = typer.Option(
+        None,
+        "--years",
+        help="If set, fetch the last N years of CVEs in monthly chunks (long-window mode).",
+    ),
+    full: bool = typer.Option(
+        False,
+        "--full",
+        help="Convenience: equivalent to --years 3 if --years not given.",
+    ),
+    skip_kev: bool = typer.Option(False, help="Skip CISA KEV catalog fetch"),
+    skip_mitre: bool = typer.Option(False, help="Skip MITRE ATT&CK bundle fetch"),
+    urls_file: Path | None = typer.Option(
+        None,
+        "--urls",
+        help="Optional URL allowlist file for write-up extraction (e.g. data/urls/writeups.txt).",
+    ),
 ):
-    """One shot: GitHub + NVD → curated SFT → DPO pairs (training is separate: `train` / `train-dpo`)."""
+    """One shot: GitHub + NVD + CISA KEV + MITRE ATT&CK (+ URLs) → curated SFT → DPO pairs."""
     if not skip_github:
         repos = [r for r in DEFAULT_REPOS if not (skip_trickest and r["repo"] == "cve")]
         gh_out = settings.raw_dir / "github_files.jsonl"
         console.print(f"[bold]GitHub[/bold] ({len(repos)} repos) → {gh_out}")
-        ingest_repos(repos, gh_out)
+        counts = ingest_repos(repos, gh_out)
+        total = sum(counts.values())
+        console.print(f"[green]GitHub:[/green] {total} records across {len(counts)} repos")
     nv_out = settings.raw_dir / "nvd_cves.jsonl"
-    console.print(f"[bold]NVD[/bold] last {nvd_days}d → {nv_out}")
-    ingest_nvd_window(nvd_days, nv_out)
+    eff_years = years if years and years > 0 else (3.0 if full else None)
+    if eff_years:
+        console.print(f"[bold]NVD[/bold] last {eff_years} years (monthly chunks) → {nv_out}")
+        n_cve = ingest_nvd_long_window(eff_years, nv_out)
+    else:
+        console.print(f"[bold]NVD[/bold] last {nvd_days}d → {nv_out}")
+        n_cve = ingest_nvd_window(nvd_days, nv_out)
+    console.print(f"[green]NVD:[/green] {n_cve} CVE records")
+    if not skip_kev:
+        kev_out = settings.raw_dir / "cisa_kev.jsonl"
+        console.print(f"[bold]CISA KEV[/bold] → {kev_out}")
+        try:
+            n_kev = ingest_cisa_kev(kev_out)
+            console.print(f"[green]CISA KEV:[/green] {n_kev} entries")
+        except Exception as e:
+            console.print(f"[yellow]CISA KEV fetch failed: {e}[/yellow]")
+    if not skip_mitre:
+        mit_out = settings.raw_dir / "mitre_attack.jsonl"
+        console.print(f"[bold]MITRE ATT&CK[/bold] → {mit_out}")
+        try:
+            n_mit = ingest_mitre_attack(mit_out)
+            console.print(f"[green]MITRE ATT&CK:[/green] {n_mit} techniques")
+        except Exception as e:
+            console.print(f"[yellow]MITRE ATT&CK fetch failed: {e}[/yellow]")
+    if urls_file and urls_file.is_file():
+        u_out = settings.raw_dir / "urls_writeups.jsonl"
+        console.print(f"[bold]URLs[/bold] from {urls_file} → {u_out}")
+        try:
+            n_urls = ingest_url_list(urls_file, u_out)
+            console.print(f"[green]URLs:[/green] {n_urls} articles")
+        except Exception as e:
+            console.print(f"[yellow]URL ingest failed: {e}[/yellow]")
     pattern = str(settings.raw_dir / "*.jsonl")
     raw_files = sorted(Path(p) for p in glob.glob(pattern))
     if not raw_files:
@@ -267,6 +358,45 @@ def merge_lora_cmd(
     cmd = [sys.executable, "-m", "hunter_llm.infer.merge_lora", "--adapter-dir", str(adapter_dir), "--out-dir", str(out_dir)]
     if base_model:
         cmd.extend(["--base-model", base_model])
+    console.print(f"[bold]Running:[/bold] {' '.join(cmd)}")
+    subprocess.check_call(cmd)
+
+
+@app.command("hf-push")
+def hf_push_cmd(
+    repo: str = typer.Option(..., "--repo", help="HF repo id, e.g. jabir-khan/HunterLLM-8B"),
+    folder: Path = typer.Option(..., "--folder", help="Local folder to upload (model dir, dataset dir, etc.)"),
+    repo_type: str = typer.Option("model", "--repo-type", help="model | dataset | space"),
+    private: bool = typer.Option(False, "--private"),
+    commit_message: str = typer.Option("hunter-llm upload"),
+):
+    """Upload a folder (merged model, adapter, or curated dataset) to Hugging Face Hub."""
+    cmd = [
+        sys.executable, "-m", "hunter_llm.infer.hf_push",
+        "--repo", repo,
+        "--folder", str(folder),
+        "--repo-type", repo_type,
+        "--commit-message", commit_message,
+    ]
+    if private:
+        cmd.append("--private")
+    console.print(f"[bold]Running:[/bold] {' '.join(cmd)}")
+    subprocess.check_call(cmd)
+
+
+@app.command("hf-pull")
+def hf_pull_cmd(
+    repo: str = typer.Option(..., "--repo"),
+    out: Path = typer.Option(..., "--out"),
+    repo_type: str = typer.Option("dataset", "--repo-type"),
+):
+    """Download a HF dataset or model folder into `--out`."""
+    cmd = [
+        sys.executable, "-m", "hunter_llm.infer.hf_pull",
+        "--repo", repo,
+        "--out", str(out),
+        "--repo-type", repo_type,
+    ]
     console.print(f"[bold]Running:[/bold] {' '.join(cmd)}")
     subprocess.check_call(cmd)
 

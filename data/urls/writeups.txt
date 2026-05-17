@@ -1,0 +1,68 @@
+# Curated public bug-bounty / offensive-security write-ups.
+# All URLs below are public research blog posts or research index pages.
+# Fetched once via trafilatura (clean text extraction, no JS exec, no auth).
+# Provenance is preserved in each row's meta.url field.
+#
+# To extend: add one URL per line. Lines starting with `#` are comments.
+
+# === PortSwigger Research (web hacking techniques, mostly index pages) ===
+https://portswigger.net/research
+https://portswigger.net/research/top-10-web-hacking-techniques-of-2023
+https://portswigger.net/research/top-10-web-hacking-techniques-of-2022
+https://portswigger.net/research/top-10-web-hacking-techniques-of-2021
+https://portswigger.net/research/top-10-web-hacking-techniques-of-2020
+https://portswigger.net/research/top-10-web-hacking-techniques-of-2019
+https://portswigger.net/research/top-10-web-hacking-techniques-of-2018
+https://portswigger.net/research/practical-web-cache-poisoning
+https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn
+https://portswigger.net/research/web-cache-entanglement
+https://portswigger.net/research/exploiting-http-request-smuggling
+https://portswigger.net/research/server-side-template-injection
+https://portswigger.net/research/cracking-the-lens-targeting-https-hidden-attack-surface
+https://portswigger.net/research/owning-the-clout-through-server-side-request-forgery
+
+# === Google Project Zero (public vulnerability research) ===
+https://googleprojectzero.blogspot.com/
+https://googleprojectzero.blogspot.com/p/0day.html
+https://googleprojectzero.blogspot.com/2021/02/an-iot-hacker-look-at-lora-part-1.html
+
+# === ProjectDiscovery blog (templates + research) ===
+https://projectdiscovery.io/blog
+https://blog.projectdiscovery.io/
+
+# === Assetnote (large-asset / SaaS bug-hunting research) ===
+https://blog.assetnote.io/
+https://www.assetnote.io/resources/research
+
+# === Detectify Labs (web research) ===
+https://labs.detectify.com/
+https://blog.detectify.com/
+
+# === Doyensec (research lab) ===
+https://blog.doyensec.com/
+
+# === NCC Group (research) ===
+https://research.nccgroup.com/
+
+# === Bishop Fox (security research) ===
+https://bishopfox.com/blog/
+
+# === SpecterOps (AD / offensive) ===
+https://posts.specterops.io/
+
+# === GitHub Security Lab (research blog) ===
+https://github.blog/category/security/
+https://securitylab.github.com/research/
+
+# === IncludeSecurity / Trail of Bits research ===
+https://blog.trailofbits.com/category/security/
+https://www.includesecurity.com/blog/
+
+# === Snyk research ===
+https://snyk.io/blog/category/security/
+
+# === Acunetix / Invicti research (web AppSec) ===
+https://www.acunetix.com/blog/
+
+# === OWASP Foundation blog (high-level guidance, not duplicated by repos) ===
+https://owasp.org/news/

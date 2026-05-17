@@ -1,12 +1,7 @@
-# Local data and trained artifacts (large / regenerable)
-data/
+# Local data — keep eval benchmark + curated URL lists + processed dataset README in-repo
+data/raw/
+data/processed/*.jsonl
 outputs/
-*.jsonl
-
-# Keep the shipped evaluation benchmark in-repo
-!data/
-!data/eval/
-!data/eval/**
 
 # Python
 __pycache__/

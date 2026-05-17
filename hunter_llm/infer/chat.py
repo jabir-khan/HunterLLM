@@ -43,6 +43,20 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
+def _llama3_stop_token_ids(tokenizer) -> list[int]:
+    """Llama 3 instruct ends turns with both <|end_of_text|> and <|eot_id|>; without
+    setting both, generation tends to run past the assistant turn into garbage.
+    Returns a list of token ids suitable for `eos_token_id=` in `.generate()`."""
+    ids: list[int] = []
+    if tokenizer.eos_token_id is not None:
+        ids.append(tokenizer.eos_token_id)
+    for tok in ("<|eot_id|>", "<|end_of_text|>"):
+        tid = tokenizer.convert_tokens_to_ids(tok)
+        if isinstance(tid, int) and tid is not None and tid > 0 and tid not in ids:
+            ids.append(tid)
+    return ids or [tokenizer.eos_token_id]
+
+
 def build_model_and_tokenizer(args: argparse.Namespace):
     tok = AutoTokenizer.from_pretrained(
         args.merged_model or args.base_model,
@@ -129,7 +143,7 @@ def main() -> None:
             temperature=0.7,
             top_p=0.9,
             pad_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.eos_token_id,
+            eos_token_id=_llama3_stop_token_ids(tokenizer),
             streamer=streamer,
         )
 

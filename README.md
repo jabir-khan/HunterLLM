@@ -37,9 +37,15 @@ This is an early-stage research codebase. Expect rough edges. PRs and issues wel
 git clone https://github.com/jabir-khan/HunterLLM.git
 cd HunterLLM
 python3 -m venv .venv && source .venv/bin/activate
+
+# Core (CPU OK on macOS) — data collection, curation, chat against merged model:
 pip install -e .
-# Optional retrieval extras (sentence-transformers + numpy):
+
+# Retrieval (CPU OK): sentence-transformers + numpy
 pip install -e ".[rag]"
+
+# Full training stack (CUDA Linux only): torch, transformers, peft, trl, bitsandbytes, ...
+pip install -e ".[train]"
 ```
 
 Optional env (defaults usually fine):
@@ -56,29 +62,56 @@ HF_TOKEN=hf_xxx                                         # if base model is gated
 
 ## End-to-end workflow
 
-```bash
-# 1) Collect raw sources (GitHub repos + last N days of NVD)
-hunter-llm bootstrap-data --skip-trickest    # add --skip-github to skip repo clones
+### A) Local data pipeline (Mac, CPU)
 
-# 2) Build the curated SFT dataset and DPO preference pairs
-#    (already done by bootstrap-data; re-run after adding new sources)
+```bash
+# Collect raw sources: GitHub repos + ~3 years of NVD in monthly chunks
+hunter-llm bootstrap-data --skip-trickest --full
+
+# Or for a quick test corpus (~90 days of NVD)
+hunter-llm bootstrap-data --skip-trickest
+
+# Build the curated SFT dataset and DPO preference pairs (also done by bootstrap-data)
 hunter-llm build-dataset
 hunter-llm export-dpo
 
-# 3) (Optional) build a retrieval index over the curated corpus
+# (Optional) build a retrieval index over the curated corpus
 hunter-llm rag-build data/processed/sft_train.jsonl
+```
 
-# 4) Fine-tune on a CUDA GPU
-export HUNTER_BASE_MODEL=mistralai/Mistral-7B-Instruct-v0.3
-hunter-llm train                                                  # SFT -> outputs/hunter-lora
-hunter-llm train-dpo --sft-adapter-dir outputs/hunter-lora        # DPO -> outputs/hunter-dpo-lora
+### B) Train on a CUDA GPU (RunPod / Lambda / Kaggle)
 
-# 5) Chat with the adapter (CPU OK for small bases; GPU for 7B+)
+One-shot end-to-end on a fresh RunPod A6000 pod:
+
+```bash
+git clone https://github.com/jabir-khan/HunterLLM.git && cd HunterLLM
+export HF_TOKEN=hf_xxx                           # write scope
+export HF_MODEL_REPO=jabir-khan/HunterLLM-8B
+# Optional: skip data collection by reusing a HF dataset
+# export HF_DATASET_REPO=jabir-khan/hunter-llm-sft-v1
+bash scripts/runpod_bootstrap.sh
+```
+
+Manual flow (any GPU box):
+
+```bash
+pip install -e ".[train]"
+export HUNTER_BASE_MODEL=meta-llama/Meta-Llama-3-8B-Instruct
+hunter-llm train                                                 # SFT -> outputs/hunter-lora
+hunter-llm train-dpo --sft-adapter-dir outputs/hunter-lora       # DPO -> outputs/hunter-dpo-lora
+hunter-llm merge-lora --adapter-dir outputs/hunter-dpo-lora \
+                      --out-dir outputs/hunter-merged
+hunter-llm hf-push --repo "$HF_MODEL_REPO" --folder outputs/hunter-merged
+```
+
+### C) Chat from anywhere (Mac, GPU, CI)
+
+```bash
+# Stream from HF Hub once the merged model is pushed:
+hunter-llm chat --merged-model jabir-khan/HunterLLM-8B
+
+# Or chat against base + adapter (saves disk if you already cache the base):
 hunter-llm chat --adapter-dir outputs/hunter-dpo-lora
-
-# 6) Optional: bake LoRA into one folder for Ollama / vLLM / HF Hub
-hunter-llm merge-lora --adapter-dir outputs/hunter-dpo-lora --out-dir outputs/hunter-merged
-hunter-llm chat --merged-model outputs/hunter-merged
 ```
 
 All commands have `--help`.
@@ -118,19 +151,23 @@ Per-sample provenance is tracked in the `meta` field of every generated instruct
 ## CLI cheatsheet
 
 ```text
-hunter-llm collect-github       # clone repos -> raw JSONL
-hunter-llm collect-nvd          # NVD lookback window -> raw JSONL
-hunter-llm collect-urls FILE    # extract write-ups from URL list -> raw JSONL
-hunter-llm build-dataset        # instruction synth + quality + dedup -> SFT JSONL
-hunter-llm export-dpo           # synthesize chosen/rejected pairs -> DPO JSONL
-hunter-llm rag-build PATH       # embed JSONL into a retrieval index
-hunter-llm rag-query QUERY      # query the retrieval index
-hunter-llm eval-benchmark       # list benchmark tasks
-hunter-llm train                # QLoRA SFT
-hunter-llm train-dpo            # QLoRA DPO on preference pairs
-hunter-llm merge-lora           # bake LoRA into base -> single folder
-hunter-llm chat                 # interactive terminal chat
-hunter-llm bootstrap-data       # one shot: collect + build + DPO export
+hunter-llm collect-github             # clone repos -> raw JSONL (per-repo path filters)
+hunter-llm collect-nvd                # NVD lookback (use --years N for monthly chunks)
+hunter-llm collect-cisa-kev           # CISA Known Exploited Vulnerabilities catalog
+hunter-llm collect-mitre-attack       # MITRE ATT&CK Enterprise TTPs
+hunter-llm collect-urls FILE          # extract write-ups from URL list -> raw JSONL
+hunter-llm build-dataset              # instruction synth + quality + dedup -> SFT JSONL
+hunter-llm export-dpo                 # synthesize chosen/rejected pairs -> DPO JSONL
+hunter-llm rag-build PATH             # embed JSONL into a retrieval index
+hunter-llm rag-query QUERY            # query the retrieval index
+hunter-llm eval-benchmark             # list benchmark tasks
+hunter-llm train                      # QLoRA SFT
+hunter-llm train-dpo                  # QLoRA DPO on preference pairs
+hunter-llm merge-lora                 # bake LoRA into base -> single folder
+hunter-llm chat                       # interactive terminal chat
+hunter-llm hf-push   --repo X --folder Y    # upload model/dataset to Hugging Face
+hunter-llm hf-pull   --repo X --out    Y    # download model/dataset from Hugging Face
+hunter-llm bootstrap-data --full      # one shot: collect (3y NVD + KEV + ATT&CK) + build + DPO
 ```
 
 ---

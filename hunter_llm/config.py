@@ -48,8 +48,8 @@ DEFAULT_REPOS: list[dict] = [
         "owner": "danielmiessler",
         "repo": "SecLists",
         "license": "MIT",
-        # Only the small README/methodology files; wordlists themselves are huge noise.
-        "paths": ["README.md", "Discovery", "Fuzzing", "Pattern-Matching", "Web-Shells"],
+        # Methodology/readme-style paths only — exclude Passwords, Web-Shells, huge wordlists.
+        "paths": ["README.md", "Discovery", "Fuzzing", "Pattern-Matching", "Miscellaneous"],
     },
     {
         "owner": "projectdiscovery",
@@ -134,6 +134,67 @@ DEFAULT_REPOS: list[dict] = [
         "owner": "ngalongc",
         "repo": "bug-bounty-reference",
         "license": "MIT",
+        "paths": None,
+    },
+    # === Added in expansion: writeup aggregators, OWASP guides, internal/AD, taxonomy ===
+    {
+        "owner": "OWASP",
+        "repo": "owasp-mastg",
+        "license": "CC-BY-SA-4.0",
+        "paths": ["Document", "tests"],
+    },
+    {
+        "owner": "OWASP",
+        "repo": "API-Security",
+        "license": "CC-BY-SA-4.0",
+        "paths": ["editions"],
+    },
+    {
+        "owner": "OWASP",
+        "repo": "Top10",
+        "license": "CC-BY-SA-4.0",
+        "paths": ["2021/docs"],
+    },
+    {
+        "owner": "swisskyrepo",
+        "repo": "InternalAllTheThings",
+        "license": "MIT",
+        "paths": None,
+    },
+    {
+        "owner": "Ignitetechnologies",
+        "repo": "Mindmap",
+        "license": "Other",
+        "paths": None,
+    },
+    {
+        "owner": "0xInfection",
+        "repo": "Awesome-WAF",
+        "license": "CC-BY-4.0",
+        "paths": None,
+    },
+    {
+        "owner": "bugcrowd",
+        "repo": "vulnerability-rating-taxonomy",
+        "license": "Apache-2.0",
+        "paths": None,
+    },
+    {
+        "owner": "devanshbatham",
+        "repo": "Awesome-Bugbounty-Writeups",
+        "license": "MIT",
+        "paths": None,
+    },
+    {
+        "owner": "kh4sh3i",
+        "repo": "Bug-Bounty-Writeups",
+        "license": "MIT",
+        "paths": None,
+    },
+    {
+        "owner": "qazbnm456",
+        "repo": "awesome-web-security",
+        "license": "CC-BY-4.0",
         "paths": None,
     },
 ]
