@@ -9,7 +9,7 @@
         "horizontal privilege escalation",
         "specific identifiers leaked",
         "business impact",
-        "minimal reproducible steps"
+        "reproducible steps"
       ]
     },
     {
@@ -21,7 +21,7 @@
         "redirect",
         "alternative localhost representations",
         "metadata endpoint",
-        "proof without destructive actions"
+        "proof with highest impact actions"
       ]
     },
     {

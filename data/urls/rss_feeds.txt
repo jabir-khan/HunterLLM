@@ -1,0 +1,22 @@
+# Non-Medium RSS / Atom feeds for security write-ups.
+# Used by `hunter-llm discover-writeup-urls --preset rss-only --feeds-file data/urls/rss_feeds.txt`
+# (no --rss-host-only so each feed's own host is preserved).
+
+# === Personal Meta/Facebook bug-bounty researcher blogs ===
+https://ysamm.com/feed.xml
+https://philippeharewood.com/feed/
+https://stephensclafani.com/feed/
+https://www.arneswinnen.net/feed/
+https://www.brutelogic.com.br/blog/feed/
+https://samcurry.net/feed
+https://bugs.xdavidhu.me/feed.xml
+https://www.pranavhivarekar.in/feeds/posts/default
+
+# === Research labs / aggregators ===
+https://swarm.ptsecurity.com/feed/
+https://blog.intigriti.com/feed/
+https://blog.assetnote.io/rss.xml
+https://www.assetnote.io/resources/rss.xml
+https://blog.detectify.com/rss/
+https://portswigger.net/blog/rss
+https://portswigger.net/research/rss

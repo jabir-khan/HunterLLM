@@ -1,0 +1,33 @@
+# Curated public bug-bounty researcher blogs — high signal for Facebook/Meta + general web AppSec.
+# Each entry is either a homepage (one-off ingestion) or an RSS feed when the site is large.
+# Add MEDIUM PROFILES via medium_feeds.txt entries.
+# Rebuild after edits:
+#   hunter-llm collect-urls data/urls/researcher_blogs.txt --append
+#
+# === Meta / Facebook bug bounty researchers (public personal sites) ===
+https://ysamm.com/                          # Youssef Sammouda — most prolific Meta BB writeups
+https://philippeharewood.com/                # Philippe Harewood (phwd) — Facebook bug research
+https://phwd.github.io/                      # Philippe Harewood (alt)
+https://fin1te.net/                          # Jack Whitton — Facebook/OAuth bugs
+https://stephensclafani.com/                 # Stephen Sclafani — Facebook OAuth/login flow
+https://www.arneswinnen.net/                 # Arne Swinnen — multiple Meta BB writeups
+https://www.ubercomp.com/                    # Reginaldo Silva — Facebook RCE + chains
+https://www.brutelogic.com.br/blog/          # Rodolfo Assis — XSS focus, Facebook XSS
+https://swarm.ptsecurity.com/                # PT SWARM team writeups (some Facebook)
+https://www.pranavhivarekar.in/              # Pranav Hivarekar — Facebook account takeovers
+https://blog.intigriti.com/                  # Intigriti blog — frequent Facebook/Meta CTF/writeups
+https://samcurry.net/                        # Sam Curry — large web/auth chains
+https://bugs.xdavidhu.me/                    # David Schütz — Google/Meta auth bugs
+https://blog.assetnote.io/                   # Assetnote — recon + web exploitation
+https://infosecwriteups.com/                 # InfoSec Write-ups (publication; many Meta posts)
+https://hackernoon.com/u/hackernoon          # HackerNoon (also has Facebook BB posts)
+https://pentester.land/list-of-bug-bounty-writeups.html  # Pentester Land aggregated index
+https://blog.detectify.com/                  # Detectify Labs — recon/Meta/web research
+https://portswigger.net/research             # PortSwigger Research — high-quality web AppSec
+https://www.cyberxplore.com/blog             # CyberXplore — bug bounty walkthroughs
+
+# === Bugreader top researchers ===
+# Their /reports list is JS-only; cannot harvest individual report URLs without auth.
+# Profile pages are also SPA shells (no extractable article body). If you obtain
+# permanent report URLs manually, drop them in data/urls/bugreader_manual.txt and
+# run: hunter-llm collect-urls data/urls/bugreader_manual.txt --append

@@ -22,27 +22,26 @@ _DEFAULT_HEADERS = {
 }
 
 
-def fetch_url_text(url: str, timeout: float = 30.0) -> tuple[str, str | None]:
-    """Return (extracted_text, title). Empty string on failure (no swallow-and-hide)."""
+def fetch_url_text(url: str, timeout: float = 12.0) -> tuple[str, str | None]:
+    """Return (extracted_text, title). Empty string on failure (no swallow-and-hide).
+
+    Uses httpx directly (with a strict timeout) and only delegates the HTML
+    parsing to trafilatura. trafilatura.fetch_url has been observed to hang
+    well past its advertised timeout on some hosts, so we skip it.
+    """
     downloaded: str | None = None
     try:
-        downloaded = trafilatura.fetch_url(url)
+        with httpx.Client(
+            follow_redirects=True,
+            headers=_DEFAULT_HEADERS,
+            timeout=httpx.Timeout(timeout, connect=min(timeout, 6.0)),
+        ) as c:
+            r = c.get(url)
+            if r.status_code >= 400:
+                return "", None
+            downloaded = r.text
     except Exception:
-        downloaded = None
-
-    if not downloaded:
-        try:
-            with httpx.Client(
-                follow_redirects=True,
-                headers=_DEFAULT_HEADERS,
-                timeout=timeout,
-            ) as c:
-                r = c.get(url)
-                if r.status_code >= 400:
-                    return "", None
-                downloaded = r.text
-        except Exception:
-            return "", None
+        return "", None
 
     if not downloaded:
         return "", None

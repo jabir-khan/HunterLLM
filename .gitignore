@@ -2,6 +2,8 @@
 data/raw/
 data/processed/*.jsonl
 data/urls/discovered_writeups.txt
+data/urls/discovered_blogs.txt
+data/urls/discovered_all.txt
 outputs/
 
 # Python

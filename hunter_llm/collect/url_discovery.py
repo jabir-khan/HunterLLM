@@ -150,7 +150,18 @@ def discover_urls_from_feed_url(
         r.raise_for_status()
         if pause_sec > 0:
             time.sleep(pause_sec)
-        return urls_from_feed_xml(r.text)
+        urls = urls_from_feed_xml(r.text)
+        feed_host = urlparse(feed_url).netloc
+        if feed_host:
+            fixed: list[str] = []
+            for u in urls:
+                p = urlparse(u)
+                if p.hostname in {"localhost", "127.0.0.1", "0.0.0.0"} or (p.hostname or "").endswith(".local"):
+                    fixed.append(p._replace(netloc=feed_host).geturl())
+                else:
+                    fixed.append(u)
+            urls = fixed
+        return urls
     finally:
         if own:
             client.close()
@@ -167,7 +178,12 @@ def discover_urls_from_feed_file(
     out: list[str] = []
     with httpx.Client(headers=_HEADERS, follow_redirects=True, timeout=60.0) as c:
         for feed in lines:
-            out.extend(discover_urls_from_feed_url(feed, client=c, pause_sec=pause_sec))
+            try:
+                got = discover_urls_from_feed_url(feed, client=c, pause_sec=pause_sec)
+                out.extend(got)
+            except Exception as e:
+                print(f"  [feed-skip] {feed} ({type(e).__name__}: {str(e)[:80]})", flush=True)
+                continue
     return filter_urls_by_hostname(_dedupe_ordered(out), rss_host_suffixes)
 
 
