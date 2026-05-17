@@ -484,9 +484,17 @@ def hf_push_cmd(
 def hf_pull_cmd(
     repo: str = typer.Option(..., "--repo"),
     out: Path = typer.Option(..., "--out"),
-    repo_type: str = typer.Option("dataset", "--repo-type"),
+    repo_type: str = typer.Option(
+        "model",
+        "--repo-type",
+        help="model | dataset | space (default: model — symmetric with hf-push)",
+    ),
 ):
-    """Download a HF dataset or model folder into `--out`."""
+    """Download a HF dataset or model folder into `--out`.
+
+    Default `--repo-type` is `model` (matching `hf-push`); pass `--repo-type dataset`
+    to fetch a dataset repo. Mismatched repo type returns a 404 on the HF API.
+    """
     cmd = [
         sys.executable, "-m", "hunter_llm.infer.hf_pull",
         "--repo", repo,
