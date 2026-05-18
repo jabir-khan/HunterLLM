@@ -78,15 +78,63 @@ def collect_urls(
     urls_file: Path = typer.Argument(..., exists=True, readable=True),
     out: Path | None = typer.Option(None),
     append: bool = typer.Option(False, help="Append JSONL rows to existing file instead of replacing it"),
+    verbose_skips: int = typer.Option(
+        0,
+        "--verbose-skips",
+        help="Print status_code + raw_html length for the first N skipped URLs (debug HackerOne / Cloudflare).",
+    ),
 ):
     """Fetch and extract write-ups from an allowlisted URL list (respect robots / terms)."""
     out_path = out or (settings.raw_dir / "urls_writeups.jsonl")
     console.print(f"[bold]Ingesting URLs[/bold] from {urls_file}")
-    n = ingest_url_list(urls_file, out_path, append=append)
+    n = ingest_url_list(urls_file, out_path, append=append, verbose_skips=verbose_skips)
     console.print(f"[green]Kept[/green] {n} non-trivial articles")
 
 
-@app.command("build-h1-urls")
+@app.command("collect-h1-json")
+def collect_h1_json(
+    urls_file: Path = typer.Option(
+        Path("data/urls/hackerone_top_reports.txt"),
+        "--urls-file",
+        help="One hackerone.com/reports/<id> URL per line (# comments ok).",
+        exists=True,
+        readable=True,
+    ),
+    out: Path | None = typer.Option(None, help="Default: append to raw/urls_writeups.jsonl unless --replace-out"),
+    replace_out: bool = typer.Option(False, "--replace-out", help="Write only H1 rows to --out instead of merging"),
+    pause: float = typer.Option(0.55, "--pause", help="Seconds between HackerOne API requests (be polite)."),
+    limit: int | None = typer.Option(None, "--limit", help="Stop after processing this many URLs (smoke tests)."),
+    min_chars: int = typer.Option(200, "--min-chars"),
+):
+    """Ingest disclosed HackerOne reports via the public ``/reports/<id>.json`` API.
+
+    **Do not** use ``collect-urls`` on HackerOne HTML --- it returns SPA shells.
+
+    Concatenates ``vulnerability_information`` + disclosure ``summaries`` into one
+    text block per report. Use ``--append`` pattern: default output is merged
+    into ``data/raw/urls_writeups.jsonl`` unless ``--replace-out`` is passed.
+    """
+    from hunter_llm.collect.hackerone_json import ingest_hackerone_url_list
+
+    out_path = out or (settings.raw_dir / "urls_writeups.jsonl")
+    console.print(f"[bold]HackerOne JSON ingest[/bold] from {urls_file} → {out_path}")
+    stats = ingest_hackerone_url_list(
+        urls_file,
+        out_path,
+        pause_sec=pause,
+        min_chars=min_chars,
+        append=not replace_out,
+        progress=True,
+        limit=limit,
+    )
+    t = Table(title="HackerOne JSON ingest")
+    t.add_column("metric")
+    t.add_column("count", justify="right")
+    for k, v in stats.items():
+        t.add_row(k, str(v))
+    console.print(t)
+    console.print(f"[green]Wrote[/green] {stats['written']} reports → {out_path}")
+
 def build_h1_urls_cmd(
     csv_path: Path = typer.Option(
         Path("data/raw/repos/hackerone-reports/data.csv"),
@@ -103,11 +151,11 @@ def build_h1_urls_cmd(
 ):
     """Build a curated URL list of top disclosed HackerOne reports.
 
-    Run from a residential IP afterwards:
-        hunter-llm collect-urls data/urls/hackerone_top_reports.txt --append
+    Ingest the bodies with (**not** plain ``collect-urls``)::
 
-    HackerOne blocks most datacenter IPs with Cloudflare 403, so don't run this
-    on the RunPod.
+        hunter-llm collect-h1-json --urls-file data/urls/hackerone_top_reports.txt
+
+    That uses ``GET /reports/<id>.json`` (``vulnerability_information`` + summaries).
     """
     from hunter_llm.collect.h1_urls import build_h1_subset
 
