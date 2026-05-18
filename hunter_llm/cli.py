@@ -86,6 +86,45 @@ def collect_urls(
     console.print(f"[green]Kept[/green] {n} non-trivial articles")
 
 
+@app.command("build-h1-urls")
+def build_h1_urls_cmd(
+    csv_path: Path = typer.Option(
+        Path("data/raw/repos/hackerone-reports/data.csv"),
+        "--csv",
+        help="Path to the cloned reddelexc/hackerone-reports data.csv",
+    ),
+    out: Path = typer.Option(
+        Path("data/urls/hackerone_top_reports.txt"),
+        "--out",
+    ),
+    min_upvotes: int = typer.Option(20),
+    max_rows: int = typer.Option(2000),
+    require_bounty: bool = typer.Option(False, "--require-bounty"),
+):
+    """Build a curated URL list of top disclosed HackerOne reports.
+
+    Run from a residential IP afterwards:
+        hunter-llm collect-urls data/urls/hackerone_top_reports.txt --append
+
+    HackerOne blocks most datacenter IPs with Cloudflare 403, so don't run this
+    on the RunPod.
+    """
+    from hunter_llm.collect.h1_urls import build_h1_subset
+
+    if not csv_path.is_file():
+        console.print(f"[red]Missing {csv_path}. Clone reddelexc/hackerone-reports first.[/red]")
+        raise typer.Exit(code=1)
+    n = build_h1_subset(
+        csv_path,
+        out,
+        min_upvotes=min_upvotes,
+        max_rows=max_rows,
+        require_bounty=require_bounty,
+    )
+    console.print(f"[green]Wrote {n} URLs -> {out}[/green]")
+    console.print(f"[dim]metadata sidecar: {out.with_suffix(out.suffix + '.meta.tsv')}[/dim]")
+
+
 @app.command("collect-personal")
 def collect_personal(
     reports_dir: Path = typer.Option(
@@ -347,6 +386,83 @@ def build_dataset_v2(
         table.add_row(k, str(counts[k]))
     console.print(table)
     console.print(f"[green]v2 SFT dataset:[/green] {out_path}")
+
+
+@app.command("build-dataset-v3")
+def build_dataset_v3(
+    raw_glob: str | None = typer.Option(
+        None,
+        "--raw-glob",
+        help="Glob for raw JSONL files; default: HUNTER_DATA_ROOT/raw/*.jsonl",
+    ),
+    out: Path | None = typer.Option(None),
+    patt_root: Path = typer.Option(Path("data/raw/repos/PayloadsAllTheThings"), "--patt-root"),
+    nuclei_root: Path = typer.Option(Path("data/raw/repos/nuclei-templates"), "--nuclei-root"),
+    personal_jsonl: Path = typer.Option(Path("data/raw/personal_reports.jsonl"), "--personal"),
+    nuclei_max_per_dir: int = typer.Option(8),
+    dedup: bool = typer.Option(True, "--dedup/--no-dedup"),
+    dedup_threshold: float = typer.Option(0.94),
+):
+    """v3 SFT dataset — v2 buckets (real source bodies) + v3 prescriptive buckets
+    (payloads, wordlists, nuclei probes, tool invocations, personal reports).
+
+    Produces a *task-shaped* dataset: the gold output for most pairs is what an
+    operator actually wants — payloads in code fences, exact curl invocations,
+    nuclei YAML, or the user's own report style.
+    """
+    from hunter_llm.preprocess.dedup import dedup_rows_jsonl
+    from hunter_llm.preprocess.instructions_v2 import write_v2_dataset
+    from hunter_llm.preprocess.instructions_v3 import write_v3_extra
+
+    pattern = raw_glob or str(settings.raw_dir / "*.jsonl")
+    raw_files = sorted(Path(p) for p in glob.glob(pattern))
+    if not raw_files:
+        console.print("[red]No raw JSONL files found. Run collect-* first.[/red]")
+        raise typer.Exit(code=1)
+
+    out_path = out or (settings.processed_dir / "sft_train_v3.jsonl")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    v2_interim = out_path.with_suffix(".v2_interim.jsonl")
+    v3_interim = out_path.with_suffix(".v3_interim.jsonl")
+    merged_interim = out_path.with_suffix(".merged_interim.jsonl")
+
+    v2_counts = write_v2_dataset(raw_files, v2_interim)
+    v3_counts = write_v3_extra(
+        v3_interim,
+        patt_root=patt_root,
+        nuclei_root=nuclei_root,
+        personal_jsonl=personal_jsonl,
+        nuclei_max_per_dir=nuclei_max_per_dir,
+    )
+
+    with merged_interim.open("w", encoding="utf-8") as w:
+        for p in (v2_interim, v3_interim):
+            if p.exists():
+                with p.open() as r:
+                    for line in r:
+                        w.write(line)
+    v2_interim.unlink(missing_ok=True)
+    v3_interim.unlink(missing_ok=True)
+
+    if dedup:
+        kept, skipped = dedup_rows_jsonl(merged_interim, out_path, threshold=dedup_threshold)
+        merged_interim.unlink(missing_ok=True)
+    else:
+        merged_interim.replace(out_path)
+        kept, skipped = sum(v2_counts.get("_total", 0) + v3_counts.get("_total", 0)), 0
+
+    table = Table(title="v3 dataset build")
+    table.add_column("Bucket")
+    table.add_column("Count")
+    for k in sorted(v2_counts):
+        table.add_row(f"v2.{k}", str(v2_counts[k]))
+    for k in sorted(v3_counts):
+        table.add_row(f"v3.{k}", str(v3_counts[k]))
+    table.add_row("after_dedup_kept", str(kept))
+    table.add_row("after_dedup_skipped", str(skipped))
+    console.print(table)
+    console.print(f"[green]v3 SFT dataset:[/green] {out_path}")
 
 
 @app.command("eval-benchmark")
