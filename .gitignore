@@ -1,6 +1,7 @@
 # Local data — keep eval benchmark + curated URL lists + processed dataset README in-repo
 data/raw/
 data/processed/*.jsonl
+data/processed/hf_upload_*/
 data/urls/discovered_writeups.txt
 data/urls/discovered_blogs.txt
 data/urls/discovered_all.txt

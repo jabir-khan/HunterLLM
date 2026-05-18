@@ -275,6 +275,52 @@ def rag_query(
         console.print("---")
 
 
+@app.command("build-dataset-v2")
+def build_dataset_v2(
+    raw_glob: str | None = typer.Option(
+        None,
+        "--raw-glob",
+        help="Glob for raw JSONL files; default: HUNTER_DATA_ROOT/raw/*.jsonl",
+    ),
+    out: Path | None = typer.Option(None),
+    dedup: bool = typer.Option(True, "--dedup/--no-dedup"),
+    dedup_threshold: float = typer.Option(0.92),
+):
+    """v2 SFT dataset — outputs are the real source bodies (write-ups, CVE / KEV /
+    ATT&CK descriptions, OWASP / Metasploit prose). Smaller than v1 but every
+    pair carries real domain content.
+    """
+    from hunter_llm.preprocess.instructions_v2 import write_v2_dataset
+    from hunter_llm.preprocess.dedup import dedup_rows_jsonl
+
+    pattern = raw_glob or str(settings.raw_dir / "*.jsonl")
+    raw_files = sorted(Path(p) for p in glob.glob(pattern))
+    if not raw_files:
+        console.print("[red]No raw JSONL files found. Run collect-* first.[/red]")
+        raise typer.Exit(code=1)
+    out_path = out or (settings.processed_dir / "sft_train_v2.jsonl")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    interim = out_path.with_suffix(".interim.jsonl")
+    counts = write_v2_dataset(raw_files, interim)
+
+    if dedup:
+        kept, skipped = dedup_rows_jsonl(interim, out_path, threshold=dedup_threshold)
+        interim.unlink(missing_ok=True)
+        counts["after_dedup_kept"] = kept
+        counts["after_dedup_skipped"] = skipped
+    else:
+        interim.replace(out_path)
+        counts["after_dedup_kept"] = counts.get("_total", 0)
+
+    table = Table(title="v2 dataset build")
+    table.add_column("Bucket")
+    table.add_column("Count")
+    for k in sorted(counts):
+        table.add_row(k, str(counts[k]))
+    console.print(table)
+    console.print(f"[green]v2 SFT dataset:[/green] {out_path}")
+
+
 @app.command("eval-benchmark")
 def eval_benchmark(
     benchmark_path: Path = typer.Option(Path("data/eval/sample_benchmark.json")),
