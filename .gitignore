@@ -2,6 +2,12 @@
 data/raw/
 data/processed/*.jsonl
 data/processed/hf_upload_*/
+
+# Personal / NDA-bound bug bounty reports — never push to GitHub.
+# Keep the template + README in-repo, exclude everything else under reports/.
+data/personal/reports/*
+!data/personal/reports/_template.md
+!data/personal/reports/.gitkeep
 data/urls/discovered_writeups.txt
 data/urls/discovered_blogs.txt
 data/urls/discovered_all.txt

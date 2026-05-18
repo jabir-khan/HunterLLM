@@ -86,6 +86,34 @@ def collect_urls(
     console.print(f"[green]Kept[/green] {n} non-trivial articles")
 
 
+@app.command("collect-personal")
+def collect_personal(
+    reports_dir: Path = typer.Option(
+        Path("data/personal/reports"),
+        "--reports-dir",
+        help="Folder of YAML-frontmatter Markdown reports (see data/personal/README.md)",
+    ),
+    out: Path | None = typer.Option(None, help="Output raw JSONL; default: data/raw/personal_reports.jsonl"),
+):
+    """Ingest your own bug bounty reports into raw JSONL the v3 builder can consume.
+
+    Reports stay on your machine — this folder is gitignored. Run after dropping
+    files into `data/personal/reports/`. Re-run any time to refresh.
+    """
+    from hunter_llm.collect.personal_reports import ingest_personal_reports
+
+    if not reports_dir.is_dir():
+        console.print(f"[red]Missing {reports_dir}. See data/personal/README.md[/red]")
+        raise typer.Exit(code=1)
+    out_path = out or (settings.raw_dir / "personal_reports.jsonl")
+    stats = ingest_personal_reports(reports_dir, out_path)
+    console.print(f"[green]Wrote[/green] {stats['written']} personal reports -> {stats['out']}")
+    for s in stats.get("skipped", []):
+        console.print(f"  [yellow]skip[/yellow] {s}")
+    for name, hits in stats.get("secret_warnings", []):
+        console.print(f"  [red]secret warning[/red] {name}: {', '.join(hits)} -- sanitize before training!")
+
+
 def _comma_sep_paths(csv: str | None) -> list[Path]:
     if not csv:
         return []
