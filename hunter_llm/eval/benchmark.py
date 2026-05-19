@@ -39,8 +39,33 @@ _keyword_hints = [
 ]
 
 
+def rubric_score(answer: str, task: dict[str, Any]) -> float:
+    """Score against weighted rubric criteria (keyword presence per criterion)."""
+    rubric = task.get("rubric") or []
+    if not rubric:
+        return heuristic_score(answer, task)
+    blob = answer.lower()
+    total_w = sum(float(c.get("weight") or 0) for c in rubric) or 1.0
+    acc = 0.0
+    for crit in rubric:
+        w = float(crit.get("weight") or 0)
+        kws = [k.lower() for k in (crit.get("keywords") or [])]
+        if not kws:
+            continue
+        hits = sum(1 for k in kws if k in blob or re.search(rf"\b{re.escape(k)}\b", blob))
+        frac = min(1.0, hits / max(1, len(kws)))
+        acc += w * frac
+    base = acc / total_w
+    ref = " ".join(task.get("references") or [])
+    if ref.strip():
+        base = 0.65 * base + 0.35 * rouge_l_f1(answer, ref)
+    return min(1.0, base)
+
+
 def heuristic_score(answer: str, task: dict[str, Any]) -> float:
     """Cheap keyword overlap vs references + category hints."""
+    if task.get("rubric"):
+        return rubric_score(answer, task)
     ref = " ".join(task.get("references") or [])
     cat = (task.get("category") or "").lower()
     blob = (answer + " " + cat).lower()
@@ -74,5 +99,12 @@ def score_tasks_with_reference(tasks_path: Path, answers_jsonl: Path) -> dict[st
                 continue
             ans = row.get("answer") or ""
             ref = " ".join(task.get("references") or [])
-            pairs.append((tid, rouge_l_f1(ans, ref) if ref else heuristic_score(ans, task)))
+            pairs.append((tid, rubric_score(ans, task) if task.get("rubric") else (
+                rouge_l_f1(ans, ref) if ref else heuristic_score(ans, task)
+            )))
     return {"per_task": pairs, **summarize_scores(pairs)}
+
+
+def score_answer(task: dict[str, Any], answer: str) -> float:
+    """Public helper: score one answer against a loaded task dict."""
+    return rubric_score(answer, task) if task.get("rubric") else heuristic_score(answer, task)

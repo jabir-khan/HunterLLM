@@ -105,6 +105,11 @@ def collect_h1_json(
     pause: float = typer.Option(0.55, "--pause", help="Seconds between HackerOne API requests (be polite)."),
     limit: int | None = typer.Option(None, "--limit", help="Stop after processing this many URLs (smoke tests)."),
     min_chars: int = typer.Option(200, "--min-chars"),
+    only_missing: bool = typer.Option(
+        False,
+        "--only-missing",
+        help="Skip report IDs already present in the output JSONL (resume top-2k ingest).",
+    ),
 ):
     """Ingest disclosed HackerOne reports via the public ``/reports/<id>.json`` API.
 
@@ -117,6 +122,12 @@ def collect_h1_json(
     from hunter_llm.collect.hackerone_json import ingest_hackerone_url_list
 
     out_path = out or (settings.raw_dir / "urls_writeups.jsonl")
+    from hunter_llm.collect.hackerone_json import existing_report_ids
+
+    skip_ids: set[str] = set()
+    if only_missing and not replace_out:
+        skip_ids = existing_report_ids(out_path)
+        console.print(f"[dim]Skipping {len(skip_ids)} report IDs already in {out_path}[/dim]")
     console.print(f"[bold]HackerOne JSON ingest[/bold] from {urls_file} → {out_path}")
     stats = ingest_hackerone_url_list(
         urls_file,
@@ -126,6 +137,7 @@ def collect_h1_json(
         append=not replace_out,
         progress=True,
         limit=limit,
+        skip_ids=skip_ids if only_missing else None,
     )
     t = Table(title="HackerOne JSON ingest")
     t.add_column("metric")
@@ -515,7 +527,7 @@ def build_dataset_v3(
 
 @app.command("eval-benchmark")
 def eval_benchmark(
-    benchmark_path: Path = typer.Option(Path("data/eval/sample_benchmark.json")),
+    benchmark_path: Path = typer.Option(Path("data/eval/benchmark.json")),
 ):
     from hunter_llm.eval.benchmark import load_benchmark
 
@@ -526,10 +538,47 @@ def eval_benchmark(
     table = Table(title="Benchmark tasks")
     table.add_column("id")
     table.add_column("category")
+    table.add_column("rubric")
     for t in tasks:
-        table.add_row(t.get("id", ""), t.get("category", ""))
+        table.add_row(
+            t.get("id", ""),
+            t.get("category", ""),
+            "yes" if t.get("rubric") else "no",
+        )
     console.print(table)
-    console.print(f"[dim]{len(tasks)} tasks — add model outputs + score with eval/benchmark.py helpers.[/dim]")
+    console.print(
+        f"[dim]{len(tasks)} tasks — score answers with "
+        f"`hunter-llm eval-score --answers answers.jsonl`.[/dim]"
+    )
+
+
+@app.command("eval-score")
+def eval_score(
+    benchmark_path: Path = typer.Option(Path("data/eval/benchmark.json")),
+    answers: Path = typer.Argument(..., help="JSONL with {task_id, answer} per line"),
+    min_score: float = typer.Option(0.0, help="Only show tasks below this score"),
+):
+    """Score model answers against benchmark rubrics (keyword + ROUGE-L blend)."""
+    from hunter_llm.eval.benchmark import load_benchmark, score_tasks_with_reference
+
+    if not benchmark_path.is_file():
+        console.print(f"[red]Missing {benchmark_path}[/red]")
+        raise typer.Exit(code=1)
+    if not answers.is_file():
+        console.print(f"[red]Missing {answers}[/red]")
+        raise typer.Exit(code=1)
+    result = score_tasks_with_reference(benchmark_path, answers)
+    table = Table(title="Eval scores")
+    table.add_column("task_id")
+    table.add_column("score", justify="right")
+    for tid, sc in sorted(result["per_task"], key=lambda x: x[1]):
+        if sc < min_score or min_score <= 0:
+            table.add_row(tid, f"{sc:.3f}")
+    console.print(table)
+    console.print(
+        f"[green]mean={result['mean']:.3f}[/green] "
+        f"count={int(result['count'])} min={result.get('min', 0):.3f} max={result.get('max', 0):.3f}"
+    )
 
 
 @app.command("bootstrap-data")

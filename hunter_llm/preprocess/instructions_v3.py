@@ -382,7 +382,36 @@ _TOOL_INVOCATIONS: list[dict[str, str]] = [
 ]
 
 
+def _curated_tool_invocation_path() -> Path:
+    return Path(__file__).resolve().parents[2] / "data" / "curated" / "tool_invocations.jsonl"
+
+
 def iter_tool_invocations() -> Iterator[dict[str, Any]]:
+    """Emit curated tool/command pairs from JSONL (preferred) plus legacy inline list."""
+    curated = _curated_tool_invocation_path()
+    if curated.is_file():
+        with curated.open(encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                instr = (row.get("instruction") or "").strip()
+                if not instr:
+                    continue
+                if AUTHORIZATION_NOTE not in instr:
+                    instr = f"{instr} {AUTHORIZATION_NOTE}"
+                yield {
+                    "instruction": instr,
+                    "input": (row.get("input") or "").strip(),
+                    "output": (row.get("output") or "").strip(),
+                    "tags": row.get("tags") or [],
+                    "meta": {"source": "curated_tool", "kind": "tool_invocation"},
+                }
+        return
     for row in _TOOL_INVOCATIONS:
         yield {
             "instruction": row["instruction"] + f" {AUTHORIZATION_NOTE}",

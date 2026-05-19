@@ -90,6 +90,32 @@ def fetch_report_json(report_id: str, client: httpx.Client) -> tuple[dict | None
         return None, r.status_code
 
 
+def existing_report_ids(out_path: Path) -> set[str]:
+    """Report IDs already present in a urls_writeups-style JSONL."""
+    ids: set[str] = set()
+    if not out_path.is_file():
+        return ids
+    with out_path.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            meta = row.get("meta") or {}
+            rid = meta.get("report_id")
+            if rid:
+                ids.add(str(rid))
+                continue
+            url = row.get("url") or ""
+            parsed = report_id_from_url(url)
+            if parsed:
+                ids.add(parsed)
+    return ids
+
+
 def ingest_hackerone_url_list(
     urls_file: Path,
     out_path: Path,
@@ -99,6 +125,7 @@ def ingest_hackerone_url_list(
     append: bool = False,
     progress: bool = True,
     limit: int | None = None,
+    skip_ids: set[str] | None = None,
 ) -> dict[str, int]:
     urls: list[str] = []
     for ln in urls_file.read_text(encoding="utf-8").splitlines():
@@ -114,10 +141,12 @@ def ingest_hackerone_url_list(
         "urls_total": len(urls),
         "written": 0,
         "skipped_bad_url": 0,
+        "skipped_existing": 0,
         "skipped_http": 0,
         "skipped_short": 0,
         "skipped_not_public": 0,
     }
+    skip_ids = skip_ids or set()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     mode = "a" if append and out_path.exists() else "w"
 
@@ -130,6 +159,11 @@ def ingest_hackerone_url_list(
             rid = report_id_from_url(url)
             if not rid:
                 stats["skipped_bad_url"] += 1
+                continue
+            if rid in skip_ids:
+                stats["skipped_existing"] += 1
+                if progress:
+                    print(f"  [{i}/{len(urls)}] id={rid} already ingested -> skip", flush=True)
                 continue
 
             body_json, http = fetch_report_json(rid, client)

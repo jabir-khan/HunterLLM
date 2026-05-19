@@ -13,6 +13,20 @@ exact assets you'll point it at later** (Facebook / Meta surface in
 particular). 50 of your reports are worth more than 5,000 random Medium
 write-ups for that use-case.
 
+## Target volume (v3 training)
+
+Aim for **20–50** triager-ready reports in `reports/` before the training run.
+Each file becomes **3–5** SFT pairs (full report, methodology, impact, exploit).
+Four reports ≈ ~15 training rows; fifty reports ≈ ~150–250 rows and dominates
+your voice in the mix.
+
+Check progress:
+
+```bash
+ls data/personal/reports/*.md | wc -l    # exclude _template.md
+hunter-llm collect-personal
+```
+
 ## What to drop in `reports/`
 
 One `.md` file per bug. Filename can be anything (e.g.

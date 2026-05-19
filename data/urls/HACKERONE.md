@@ -23,6 +23,15 @@ From the repo root (polite pacing is built-in, ~0.55s between requests):
 hunter-llm collect-h1-json --urls-file data/urls/hackerone_top_reports.txt
 ```
 
+Resume only IDs not yet in ``urls_writeups.jsonl``:
+
+```bash
+hunter-llm collect-h1-json --urls-file data/urls/hackerone_top_reports.txt --only-missing
+```
+
+Expect ~1.5k–1.6k successes from the top-2k list; the rest return HTTP 404
+(withheld/removed) or bodies under ``--min-chars``.
+
 **Smoke test** (first 15 IDs only):
 
 ```bash

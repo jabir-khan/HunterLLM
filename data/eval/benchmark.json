@@ -1,0 +1,4265 @@
+{
+  "version": 3,
+  "tasks": [
+    {
+      "id": "idor-1",
+      "category": "IDOR",
+      "prompt": "You found numeric user id in REST API returns another user's PII on an authorized bounty target. Outline proof-of-impact and a triager-ready report structure.",
+      "references": [
+        "authorization",
+        "horizontal",
+        "identifier",
+        "reproducible",
+        "PII",
+        "severity"
+      ],
+      "rubric": [
+        {
+          "criterion": "names boundary crossed",
+          "weight": 0.3,
+          "keywords": [
+            "idor",
+            "access control",
+            "authorization",
+            "another user"
+          ]
+        },
+        {
+          "criterion": "concrete repro",
+          "weight": 0.3,
+          "keywords": [
+            "step",
+            "request",
+            "curl",
+            "parameter",
+            "id"
+          ]
+        },
+        {
+          "criterion": "impact framing",
+          "weight": 0.25,
+          "keywords": [
+            "impact",
+            "pii",
+            "account",
+            "severity",
+            "blast"
+          ]
+        },
+        {
+          "criterion": "scope discipline",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "in-scope",
+            "permission",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idor-2",
+      "category": "IDOR",
+      "prompt": "You found UUID in GraphQL node id leaks cross-tenant data on an authorized bounty target. Outline proof-of-impact and a triager-ready report structure.",
+      "references": [
+        "authorization",
+        "horizontal",
+        "identifier",
+        "reproducible",
+        "PII",
+        "severity"
+      ],
+      "rubric": [
+        {
+          "criterion": "names boundary crossed",
+          "weight": 0.3,
+          "keywords": [
+            "idor",
+            "access control",
+            "authorization",
+            "another user"
+          ]
+        },
+        {
+          "criterion": "concrete repro",
+          "weight": 0.3,
+          "keywords": [
+            "step",
+            "request",
+            "curl",
+            "parameter",
+            "id"
+          ]
+        },
+        {
+          "criterion": "impact framing",
+          "weight": 0.25,
+          "keywords": [
+            "impact",
+            "pii",
+            "account",
+            "severity",
+            "blast"
+          ]
+        },
+        {
+          "criterion": "scope discipline",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "in-scope",
+            "permission",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idor-3",
+      "category": "IDOR",
+      "prompt": "You found file download endpoint accepts predictable filenames on an authorized bounty target. Outline proof-of-impact and a triager-ready report structure.",
+      "references": [
+        "authorization",
+        "horizontal",
+        "identifier",
+        "reproducible",
+        "PII",
+        "severity"
+      ],
+      "rubric": [
+        {
+          "criterion": "names boundary crossed",
+          "weight": 0.3,
+          "keywords": [
+            "idor",
+            "access control",
+            "authorization",
+            "another user"
+          ]
+        },
+        {
+          "criterion": "concrete repro",
+          "weight": 0.3,
+          "keywords": [
+            "step",
+            "request",
+            "curl",
+            "parameter",
+            "id"
+          ]
+        },
+        {
+          "criterion": "impact framing",
+          "weight": 0.25,
+          "keywords": [
+            "impact",
+            "pii",
+            "account",
+            "severity",
+            "blast"
+          ]
+        },
+        {
+          "criterion": "scope discipline",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "in-scope",
+            "permission",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idor-4",
+      "category": "IDOR",
+      "prompt": "You found order id in mobile API exposes other customers' receipts on an authorized bounty target. Outline proof-of-impact and a triager-ready report structure.",
+      "references": [
+        "authorization",
+        "horizontal",
+        "identifier",
+        "reproducible",
+        "PII",
+        "severity"
+      ],
+      "rubric": [
+        {
+          "criterion": "names boundary crossed",
+          "weight": 0.3,
+          "keywords": [
+            "idor",
+            "access control",
+            "authorization",
+            "another user"
+          ]
+        },
+        {
+          "criterion": "concrete repro",
+          "weight": 0.3,
+          "keywords": [
+            "step",
+            "request",
+            "curl",
+            "parameter",
+            "id"
+          ]
+        },
+        {
+          "criterion": "impact framing",
+          "weight": 0.25,
+          "keywords": [
+            "impact",
+            "pii",
+            "account",
+            "severity",
+            "blast"
+          ]
+        },
+        {
+          "criterion": "scope discipline",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "in-scope",
+            "permission",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssrf-1",
+      "category": "SSRF",
+      "prompt": "URL fetch blocks localhost but allows redirects — how do you test and prove SSRF in-scope?",
+      "references": [
+        "ssrf",
+        "redirect",
+        "metadata",
+        "internal",
+        "oast",
+        "collaborator"
+      ],
+      "rubric": [
+        {
+          "criterion": "bypass strategy",
+          "weight": 0.3,
+          "keywords": [
+            "redirect",
+            "dns",
+            "127",
+            "localhost",
+            "metadata",
+            "169.254"
+          ]
+        },
+        {
+          "criterion": "proof primitive",
+          "weight": 0.35,
+          "keywords": [
+            "collaborator",
+            "oast",
+            "callback",
+            "interaction"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "iam",
+            "credential",
+            "internal",
+            "metadata"
+          ]
+        },
+        {
+          "criterion": "safety",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "minimal",
+            "non-destructive"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssrf-2",
+      "category": "SSRF",
+      "prompt": "PDF renderer fetches arbitrary URLs — what's your minimal PoC and impact narrative?",
+      "references": [
+        "ssrf",
+        "redirect",
+        "metadata",
+        "internal",
+        "oast",
+        "collaborator"
+      ],
+      "rubric": [
+        {
+          "criterion": "bypass strategy",
+          "weight": 0.3,
+          "keywords": [
+            "redirect",
+            "dns",
+            "127",
+            "localhost",
+            "metadata",
+            "169.254"
+          ]
+        },
+        {
+          "criterion": "proof primitive",
+          "weight": 0.35,
+          "keywords": [
+            "collaborator",
+            "oast",
+            "callback",
+            "interaction"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "iam",
+            "credential",
+            "internal",
+            "metadata"
+          ]
+        },
+        {
+          "criterion": "safety",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "minimal",
+            "non-destructive"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssrf-3",
+      "category": "SSRF",
+      "prompt": "Webhook tester accepts internal IPs — describe bypass angles and safe proof.",
+      "references": [
+        "ssrf",
+        "redirect",
+        "metadata",
+        "internal",
+        "oast",
+        "collaborator"
+      ],
+      "rubric": [
+        {
+          "criterion": "bypass strategy",
+          "weight": 0.3,
+          "keywords": [
+            "redirect",
+            "dns",
+            "127",
+            "localhost",
+            "metadata",
+            "169.254"
+          ]
+        },
+        {
+          "criterion": "proof primitive",
+          "weight": 0.35,
+          "keywords": [
+            "collaborator",
+            "oast",
+            "callback",
+            "interaction"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "iam",
+            "credential",
+            "internal",
+            "metadata"
+          ]
+        },
+        {
+          "criterion": "safety",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "minimal",
+            "non-destructive"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssrf-4",
+      "category": "SSRF",
+      "prompt": "Image import from URL — how do you reach cloud metadata without destructive actions?",
+      "references": [
+        "ssrf",
+        "redirect",
+        "metadata",
+        "internal",
+        "oast",
+        "collaborator"
+      ],
+      "rubric": [
+        {
+          "criterion": "bypass strategy",
+          "weight": 0.3,
+          "keywords": [
+            "redirect",
+            "dns",
+            "127",
+            "localhost",
+            "metadata",
+            "169.254"
+          ]
+        },
+        {
+          "criterion": "proof primitive",
+          "weight": 0.35,
+          "keywords": [
+            "collaborator",
+            "oast",
+            "callback",
+            "interaction"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "iam",
+            "credential",
+            "internal",
+            "metadata"
+          ]
+        },
+        {
+          "criterion": "safety",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "minimal",
+            "non-destructive"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xss-1",
+      "category": "XSS",
+      "prompt": "stored XSS in admin-only analytics dashboard behind SSO",
+      "references": [
+        "xss",
+        "stored",
+        "dom",
+        "session",
+        "admin",
+        "csp"
+      ],
+      "rubric": [
+        {
+          "criterion": "context",
+          "weight": 0.25,
+          "keywords": [
+            "stored",
+            "reflected",
+            "dom",
+            "admin",
+            "sso"
+          ]
+        },
+        {
+          "criterion": "payload/proof",
+          "weight": 0.35,
+          "keywords": [
+            "payload",
+            "script",
+            "alert",
+            "exfil",
+            "collaborator"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.25,
+          "keywords": [
+            "session",
+            "account",
+            "csrf",
+            "takeover"
+          ]
+        },
+        {
+          "criterion": "remediation hint",
+          "weight": 0.15,
+          "keywords": [
+            "encode",
+            "csp",
+            "sanitize"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xss-2",
+      "category": "XSS",
+      "prompt": "DOM XSS via postMessage handler in single-page app",
+      "references": [
+        "xss",
+        "stored",
+        "dom",
+        "session",
+        "admin",
+        "csp"
+      ],
+      "rubric": [
+        {
+          "criterion": "context",
+          "weight": 0.25,
+          "keywords": [
+            "stored",
+            "reflected",
+            "dom",
+            "admin",
+            "sso"
+          ]
+        },
+        {
+          "criterion": "payload/proof",
+          "weight": 0.35,
+          "keywords": [
+            "payload",
+            "script",
+            "alert",
+            "exfil",
+            "collaborator"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.25,
+          "keywords": [
+            "session",
+            "account",
+            "csrf",
+            "takeover"
+          ]
+        },
+        {
+          "criterion": "remediation hint",
+          "weight": 0.15,
+          "keywords": [
+            "encode",
+            "csp",
+            "sanitize"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xss-3",
+      "category": "XSS",
+      "prompt": "reflected XSS in JSON error field rendered without encoding",
+      "references": [
+        "xss",
+        "stored",
+        "dom",
+        "session",
+        "admin",
+        "csp"
+      ],
+      "rubric": [
+        {
+          "criterion": "context",
+          "weight": 0.25,
+          "keywords": [
+            "stored",
+            "reflected",
+            "dom",
+            "admin",
+            "sso"
+          ]
+        },
+        {
+          "criterion": "payload/proof",
+          "weight": 0.35,
+          "keywords": [
+            "payload",
+            "script",
+            "alert",
+            "exfil",
+            "collaborator"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.25,
+          "keywords": [
+            "session",
+            "account",
+            "csrf",
+            "takeover"
+          ]
+        },
+        {
+          "criterion": "remediation hint",
+          "weight": 0.15,
+          "keywords": [
+            "encode",
+            "csp",
+            "sanitize"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xss-4",
+      "category": "XSS",
+      "prompt": "blind XSS in contact form — what callback proof do you use?",
+      "references": [
+        "xss",
+        "stored",
+        "dom",
+        "session",
+        "admin",
+        "csp"
+      ],
+      "rubric": [
+        {
+          "criterion": "context",
+          "weight": 0.25,
+          "keywords": [
+            "stored",
+            "reflected",
+            "dom",
+            "admin",
+            "sso"
+          ]
+        },
+        {
+          "criterion": "payload/proof",
+          "weight": 0.35,
+          "keywords": [
+            "payload",
+            "script",
+            "alert",
+            "exfil",
+            "collaborator"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.25,
+          "keywords": [
+            "session",
+            "account",
+            "csrf",
+            "takeover"
+          ]
+        },
+        {
+          "criterion": "remediation hint",
+          "weight": 0.15,
+          "keywords": [
+            "encode",
+            "csp",
+            "sanitize"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sqli-1",
+      "category": "SQLi",
+      "prompt": "time-based blind SQLi on search parameter — conservative sqlmap plan",
+      "references": [
+        "sqli",
+        "injection",
+        "sqlmap",
+        "boolean",
+        "time-based"
+      ],
+      "rubric": [
+        {
+          "criterion": "injection class",
+          "weight": 0.3,
+          "keywords": [
+            "union",
+            "boolean",
+            "time",
+            "error",
+            "stacked"
+          ]
+        },
+        {
+          "criterion": "tooling/command",
+          "weight": 0.3,
+          "keywords": [
+            "sqlmap",
+            "parameter",
+            "risk",
+            "level"
+          ]
+        },
+        {
+          "criterion": "impact limits",
+          "weight": 0.2,
+          "keywords": [
+            "read-only",
+            "minimal",
+            "proof"
+          ]
+        },
+        {
+          "criterion": "report",
+          "weight": 0.2,
+          "keywords": [
+            "repro",
+            "severity",
+            "remediation"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sqli-2",
+      "category": "SQLi",
+      "prompt": "error-based SQLi leaks table names — how do you prove without dumping entire DB?",
+      "references": [
+        "sqli",
+        "injection",
+        "sqlmap",
+        "boolean",
+        "time-based"
+      ],
+      "rubric": [
+        {
+          "criterion": "injection class",
+          "weight": 0.3,
+          "keywords": [
+            "union",
+            "boolean",
+            "time",
+            "error",
+            "stacked"
+          ]
+        },
+        {
+          "criterion": "tooling/command",
+          "weight": 0.3,
+          "keywords": [
+            "sqlmap",
+            "parameter",
+            "risk",
+            "level"
+          ]
+        },
+        {
+          "criterion": "impact limits",
+          "weight": 0.2,
+          "keywords": [
+            "read-only",
+            "minimal",
+            "proof"
+          ]
+        },
+        {
+          "criterion": "report",
+          "weight": 0.2,
+          "keywords": [
+            "repro",
+            "severity",
+            "remediation"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sqli-3",
+      "category": "SQLi",
+      "prompt": "second-order SQLi via profile update — reproduction strategy",
+      "references": [
+        "sqli",
+        "injection",
+        "sqlmap",
+        "boolean",
+        "time-based"
+      ],
+      "rubric": [
+        {
+          "criterion": "injection class",
+          "weight": 0.3,
+          "keywords": [
+            "union",
+            "boolean",
+            "time",
+            "error",
+            "stacked"
+          ]
+        },
+        {
+          "criterion": "tooling/command",
+          "weight": 0.3,
+          "keywords": [
+            "sqlmap",
+            "parameter",
+            "risk",
+            "level"
+          ]
+        },
+        {
+          "criterion": "impact limits",
+          "weight": 0.2,
+          "keywords": [
+            "read-only",
+            "minimal",
+            "proof"
+          ]
+        },
+        {
+          "criterion": "report",
+          "weight": 0.2,
+          "keywords": [
+            "repro",
+            "severity",
+            "remediation"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth-1",
+      "category": "Auth",
+      "prompt": "redirect_uri validation bypass on OAuth authorize endpoint",
+      "references": [
+        "oauth",
+        "redirect",
+        "jwt",
+        "token",
+        "session",
+        "ato"
+      ],
+      "rubric": [
+        {
+          "criterion": "attack surface",
+          "weight": 0.3,
+          "keywords": [
+            "oauth",
+            "redirect",
+            "jwt",
+            "reset",
+            "pkce"
+          ]
+        },
+        {
+          "criterion": "variants/tests",
+          "weight": 0.35,
+          "keywords": [
+            "bypass",
+            "variant",
+            "token",
+            "code"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "account",
+            "takeover",
+            "session"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth-2",
+      "category": "Auth",
+      "prompt": "PKCE downgrade or missing on mobile OAuth client",
+      "references": [
+        "oauth",
+        "redirect",
+        "jwt",
+        "token",
+        "session",
+        "ato"
+      ],
+      "rubric": [
+        {
+          "criterion": "attack surface",
+          "weight": 0.3,
+          "keywords": [
+            "oauth",
+            "redirect",
+            "jwt",
+            "reset",
+            "pkce"
+          ]
+        },
+        {
+          "criterion": "variants/tests",
+          "weight": 0.35,
+          "keywords": [
+            "bypass",
+            "variant",
+            "token",
+            "code"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "account",
+            "takeover",
+            "session"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth-3",
+      "category": "Auth",
+      "prompt": "JWT alg none / key confusion on API gateway",
+      "references": [
+        "oauth",
+        "redirect",
+        "jwt",
+        "token",
+        "session",
+        "ato"
+      ],
+      "rubric": [
+        {
+          "criterion": "attack surface",
+          "weight": 0.3,
+          "keywords": [
+            "oauth",
+            "redirect",
+            "jwt",
+            "reset",
+            "pkce"
+          ]
+        },
+        {
+          "criterion": "variants/tests",
+          "weight": 0.35,
+          "keywords": [
+            "bypass",
+            "variant",
+            "token",
+            "code"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "account",
+            "takeover",
+            "session"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth-4",
+      "category": "Auth",
+      "prompt": "password reset token not invalidated after use",
+      "references": [
+        "oauth",
+        "redirect",
+        "jwt",
+        "token",
+        "session",
+        "ato"
+      ],
+      "rubric": [
+        {
+          "criterion": "attack surface",
+          "weight": 0.3,
+          "keywords": [
+            "oauth",
+            "redirect",
+            "jwt",
+            "reset",
+            "pkce"
+          ]
+        },
+        {
+          "criterion": "variants/tests",
+          "weight": 0.35,
+          "keywords": [
+            "bypass",
+            "variant",
+            "token",
+            "code"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "account",
+            "takeover",
+            "session"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rce-1",
+      "category": "RCE",
+      "prompt": "unsafe deserialization in Java session cookie — gadget chain approach at high level",
+      "references": [
+        "rce",
+        "deserialization",
+        "gadget",
+        "command",
+        "critical"
+      ],
+      "rubric": [
+        {
+          "criterion": "primitive",
+          "weight": 0.35,
+          "keywords": [
+            "deserial",
+            "rce",
+            "execute",
+            "command"
+          ]
+        },
+        {
+          "criterion": "proof discipline",
+          "weight": 0.3,
+          "keywords": [
+            "minimal",
+            "idempotent",
+            "touch",
+            "whoami"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "critical",
+            "server",
+            "lateral"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "lab"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rce-2",
+      "category": "RCE",
+      "prompt": "RCE via image upload ImageMagick — safe proof on authorized lab",
+      "references": [
+        "rce",
+        "deserialization",
+        "gadget",
+        "command",
+        "critical"
+      ],
+      "rubric": [
+        {
+          "criterion": "primitive",
+          "weight": 0.35,
+          "keywords": [
+            "deserial",
+            "rce",
+            "execute",
+            "command"
+          ]
+        },
+        {
+          "criterion": "proof discipline",
+          "weight": 0.3,
+          "keywords": [
+            "minimal",
+            "idempotent",
+            "touch",
+            "whoami"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "critical",
+            "server",
+            "lateral"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "lab"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rce-3",
+      "category": "RCE",
+      "prompt": "SSRF chained to Redis UNSAFE command — impact framing",
+      "references": [
+        "rce",
+        "deserialization",
+        "gadget",
+        "command",
+        "critical"
+      ],
+      "rubric": [
+        {
+          "criterion": "primitive",
+          "weight": 0.35,
+          "keywords": [
+            "deserial",
+            "rce",
+            "execute",
+            "command"
+          ]
+        },
+        {
+          "criterion": "proof discipline",
+          "weight": 0.3,
+          "keywords": [
+            "minimal",
+            "idempotent",
+            "touch",
+            "whoami"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "critical",
+            "server",
+            "lateral"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "lab"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-ffuf-api",
+      "category": "Recon",
+      "prompt": "Fuzz REST paths under /api/v2 on https://target.example.com with ffuf — one command.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-nuclei-tags",
+      "category": "Recon",
+      "prompt": "Run nuclei against https://target.example.com for critical CVEs only — safe rate limit.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-subdomains",
+      "category": "Recon",
+      "prompt": "Passive subdomain enum + live host probe for target.example.com.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-js",
+      "category": "Recon",
+      "prompt": "Extract endpoints from a main.js bundle URL — commands only.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-graphql",
+      "category": "Recon",
+      "prompt": "Test GraphQL introspection and list risky mutations.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-cors",
+      "category": "Recon",
+      "prompt": "Check CORS misconfiguration on https://api.target.example.com — curl-based.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-cache",
+      "category": "Recon",
+      "prompt": "Probe cache poisoning on CDN-fronted host — conceptual steps + one curl.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-race",
+      "category": "Recon",
+      "prompt": "Race condition on coupon redemption — how to demonstrate impact.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-ssti",
+      "category": "Recon",
+      "prompt": "SSTI probe on PDF export feature — safe template markers.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-xxe",
+      "category": "Recon",
+      "prompt": "XXE in file upload — OAST-based proof outline.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-lfi",
+      "category": "Recon",
+      "prompt": "LFI via download parameter — path traversal test matrix (brief).",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recon-business",
+      "category": "Recon",
+      "prompt": "Business logic: negative price in cart API — report impact without fraud.",
+      "references": [
+        "ffuf",
+        "nuclei",
+        "curl",
+        "recon",
+        "command"
+      ],
+      "rubric": [
+        {
+          "criterion": "actionable command",
+          "weight": 0.45,
+          "keywords": [
+            "```",
+            "ffuf",
+            "curl",
+            "nuclei",
+            "httpx",
+            "subfinder"
+          ]
+        },
+        {
+          "criterion": "flags explained",
+          "weight": 0.25,
+          "keywords": [
+            "-w",
+            "-u",
+            "-tags",
+            "rate-limit",
+            "header"
+          ]
+        },
+        {
+          "criterion": "next step",
+          "weight": 0.15,
+          "keywords": [
+            "then",
+            "pipe",
+            "validate",
+            "manual"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "permission",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-idor",
+      "category": "IDOR",
+      "prompt": "Draft HackerOne report: read any user's email via /users/{id}.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-ssrf",
+      "category": "SSRF",
+      "prompt": "Draft report: SSRF to AWS metadata via PDF import.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-xss",
+      "category": "XSS",
+      "prompt": "Draft report: stored XSS in admin panel settings.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-sqli",
+      "category": "SQLi",
+      "prompt": "Draft report: boolean SQLi in report export.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-rce",
+      "category": "RCE",
+      "prompt": "Draft report: unauthenticated RCE via file upload.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-oauth",
+      "category": "Auth",
+      "prompt": "Draft report: OAuth redirect_uri bypass to ATO.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-info",
+      "category": "Info disclosure",
+      "prompt": "Draft report: internal API keys in public JS bundle.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-csrf",
+      "category": "CSRF",
+      "prompt": "Draft report: state-changing CSRF on bank transfer.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-rate",
+      "category": "Business logic",
+      "prompt": "Draft report: rate limit bypass on OTP verify.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "report-chain",
+      "category": "Chaining",
+      "prompt": "Draft report: SSRF + Redis to read session store.",
+      "references": [
+        "summary",
+        "steps",
+        "impact",
+        "remediation",
+        "reproduction"
+      ],
+      "rubric": [
+        {
+          "criterion": "structure",
+          "weight": 0.35,
+          "keywords": [
+            "summary",
+            "steps",
+            "impact",
+            "remediation",
+            "title"
+          ]
+        },
+        {
+          "criterion": "specificity",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "severity",
+          "weight": 0.15,
+          "keywords": [
+            "severity",
+            "critical",
+            "high"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.15,
+          "keywords": [
+            "authorized",
+            "program"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-1",
+      "category": "API",
+      "prompt": "Mass assignment on PATCH /users/me elevates role to admin",
+      "references": [
+        "api",
+        "graphql",
+        "websocket",
+        "mass assignment",
+        "rate limit"
+      ],
+      "rubric": [
+        {
+          "criterion": "root cause",
+          "weight": 0.35,
+          "keywords": [
+            "authorization",
+            "validation",
+            "batch",
+            "subscription"
+          ]
+        },
+        {
+          "criterion": "repro",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "mutation",
+            "json",
+            "websocket"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "privilege",
+            "data",
+            "account"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-2",
+      "category": "API",
+      "prompt": "GraphQL batching attack bypasses rate limit on login",
+      "references": [
+        "api",
+        "graphql",
+        "websocket",
+        "mass assignment",
+        "rate limit"
+      ],
+      "rubric": [
+        {
+          "criterion": "root cause",
+          "weight": 0.35,
+          "keywords": [
+            "authorization",
+            "validation",
+            "batch",
+            "subscription"
+          ]
+        },
+        {
+          "criterion": "repro",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "mutation",
+            "json",
+            "websocket"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "privilege",
+            "data",
+            "account"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-3",
+      "category": "API",
+      "prompt": "Mobile API missing certificate pinning — what can you still report?",
+      "references": [
+        "api",
+        "graphql",
+        "websocket",
+        "mass assignment",
+        "rate limit"
+      ],
+      "rubric": [
+        {
+          "criterion": "root cause",
+          "weight": 0.35,
+          "keywords": [
+            "authorization",
+            "validation",
+            "batch",
+            "subscription"
+          ]
+        },
+        {
+          "criterion": "repro",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "mutation",
+            "json",
+            "websocket"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "privilege",
+            "data",
+            "account"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-4",
+      "category": "API",
+      "prompt": "WebSocket subscription leaks messages across rooms",
+      "references": [
+        "api",
+        "graphql",
+        "websocket",
+        "mass assignment",
+        "rate limit"
+      ],
+      "rubric": [
+        {
+          "criterion": "root cause",
+          "weight": 0.35,
+          "keywords": [
+            "authorization",
+            "validation",
+            "batch",
+            "subscription"
+          ]
+        },
+        {
+          "criterion": "repro",
+          "weight": 0.35,
+          "keywords": [
+            "request",
+            "mutation",
+            "json",
+            "websocket"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.2,
+          "keywords": [
+            "privilege",
+            "data",
+            "account"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc-csp",
+      "category": "XSS",
+      "prompt": "CSP bypass via JSONP gadget on legacy script host — proof approach.",
+      "references": [
+        "csp",
+        "bypass",
+        "gadget"
+      ],
+      "rubric": [
+        {
+          "criterion": "mechanism",
+          "weight": 0.4,
+          "keywords": [
+            "csp",
+            "bypass",
+            "gadget"
+          ]
+        },
+        {
+          "criterion": "proof",
+          "weight": 0.35,
+          "keywords": [
+            "poc",
+            "repro",
+            "step",
+            "request"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.15,
+          "keywords": [
+            "impact",
+            "severity"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc-hpp",
+      "category": "HTTP",
+      "prompt": "HTTP parameter pollution splits auth check from backend handler.",
+      "references": [
+        "hpp",
+        "parameter",
+        "pollution"
+      ],
+      "rubric": [
+        {
+          "criterion": "mechanism",
+          "weight": 0.4,
+          "keywords": [
+            "hpp",
+            "parameter",
+            "pollution"
+          ]
+        },
+        {
+          "criterion": "proof",
+          "weight": 0.35,
+          "keywords": [
+            "poc",
+            "repro",
+            "step",
+            "request"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.15,
+          "keywords": [
+            "impact",
+            "severity"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc-open-redirect",
+      "category": "Open redirect",
+      "prompt": "Open redirect in login next= parameter chained to token leak.",
+      "references": [
+        "redirect",
+        "oauth",
+        "token"
+      ],
+      "rubric": [
+        {
+          "criterion": "mechanism",
+          "weight": 0.4,
+          "keywords": [
+            "redirect",
+            "oauth",
+            "token"
+          ]
+        },
+        {
+          "criterion": "proof",
+          "weight": 0.35,
+          "keywords": [
+            "poc",
+            "repro",
+            "step",
+            "request"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.15,
+          "keywords": [
+            "impact",
+            "severity"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc-subdomain-takeover",
+      "category": "Recon",
+      "prompt": "Dangling CNAME to deleted SaaS — takeover proof steps.",
+      "references": [
+        "cname",
+        "takeover",
+        "dns"
+      ],
+      "rubric": [
+        {
+          "criterion": "mechanism",
+          "weight": 0.4,
+          "keywords": [
+            "cname",
+            "takeover",
+            "dns"
+          ]
+        },
+        {
+          "criterion": "proof",
+          "weight": 0.35,
+          "keywords": [
+            "poc",
+            "repro",
+            "step",
+            "request"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.15,
+          "keywords": [
+            "impact",
+            "severity"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc-clickjack",
+      "category": "UI",
+      "prompt": "Clickjacking on sensitive account deletion action.",
+      "references": [
+        "clickjack",
+        "iframe",
+        "ui"
+      ],
+      "rubric": [
+        {
+          "criterion": "mechanism",
+          "weight": 0.4,
+          "keywords": [
+            "clickjack",
+            "iframe",
+            "ui"
+          ]
+        },
+        {
+          "criterion": "proof",
+          "weight": 0.35,
+          "keywords": [
+            "poc",
+            "repro",
+            "step",
+            "request"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.15,
+          "keywords": [
+            "impact",
+            "severity"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc-file-upload",
+      "category": "Upload",
+      "prompt": "Upload .svg with script — MIME sniff bypass.",
+      "references": [
+        "upload",
+        "svg",
+        "mime"
+      ],
+      "rubric": [
+        {
+          "criterion": "mechanism",
+          "weight": 0.4,
+          "keywords": [
+            "upload",
+            "svg",
+            "mime"
+          ]
+        },
+        {
+          "criterion": "proof",
+          "weight": 0.35,
+          "keywords": [
+            "poc",
+            "repro",
+            "step",
+            "request"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.15,
+          "keywords": [
+            "impact",
+            "severity"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc-host-header",
+      "category": "HTTP",
+      "prompt": "Host header poisoning causes password reset link hijack.",
+      "references": [
+        "host",
+        "header",
+        "reset"
+      ],
+      "rubric": [
+        {
+          "criterion": "mechanism",
+          "weight": 0.4,
+          "keywords": [
+            "host",
+            "header",
+            "reset"
+          ]
+        },
+        {
+          "criterion": "proof",
+          "weight": 0.35,
+          "keywords": [
+            "poc",
+            "repro",
+            "step",
+            "request"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.15,
+          "keywords": [
+            "impact",
+            "severity"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc-tabnabbing",
+      "category": "XSS",
+      "prompt": "Reverse tabnabbing from target=_blank without rel=noopener.",
+      "references": [
+        "tabnabbing",
+        "opener",
+        "phishing"
+      ],
+      "rubric": [
+        {
+          "criterion": "mechanism",
+          "weight": 0.4,
+          "keywords": [
+            "tabnabbing",
+            "opener",
+            "phishing"
+          ]
+        },
+        {
+          "criterion": "proof",
+          "weight": 0.35,
+          "keywords": [
+            "poc",
+            "repro",
+            "step",
+            "request"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.15,
+          "keywords": [
+            "impact",
+            "severity"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idor-5",
+      "category": "IDOR",
+      "prompt": "POST body user_id overrides session user on profile update. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idor-6",
+      "category": "IDOR",
+      "prompt": "GraphQL alias batching returns other users' notifications. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idor-7",
+      "category": "IDOR",
+      "prompt": "S3 presigned URL generation for any object key. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idor-8",
+      "category": "IDOR",
+      "prompt": "Invoice PDF link uses guessable sequential id. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssrf-5",
+      "category": "SSRF",
+      "prompt": "SSRF via SVG xlink href in avatar upload. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssrf-6",
+      "category": "SSRF",
+      "prompt": "DNS rebinding against allowlisted domain fetcher. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssrf-7",
+      "category": "SSRF",
+      "prompt": "gopher:// blocked but dict:// allowed — test matrix. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ssrf-8",
+      "category": "SSRF",
+      "prompt": "Blind SSRF — time-based vs OAST proof. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xss-5",
+      "category": "XSS",
+      "prompt": "Markdown renderer allows javascript: in links. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xss-6",
+      "category": "XSS",
+      "prompt": "Angular template injection in search query. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xss-7",
+      "category": "XSS",
+      "prompt": "CSP report-only — still exploitable? Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xss-8",
+      "category": "XSS",
+      "prompt": "Self-XSS escalated via CSRF to admin. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sqli-4",
+      "category": "SQLi",
+      "prompt": "NoSQL injection in Mongo query operator. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sqli-5",
+      "category": "SQLi",
+      "prompt": "ORDER BY injection for blind extraction. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sqli-6",
+      "category": "SQLi",
+      "prompt": "SQLi in JSON field of GraphQL resolver. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth-5",
+      "category": "Auth",
+      "prompt": "SAML assertion not signed — impact. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth-6",
+      "category": "Auth",
+      "prompt": "Refresh token rotation missing — session fixation. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth-7",
+      "category": "Auth",
+      "prompt": "MFA bypass via alternate API version. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth-8",
+      "category": "Auth",
+      "prompt": "API key in URL query logged by CDN. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rce-4",
+      "category": "RCE",
+      "prompt": "Template injection in email preview (SSTI). Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rce-5",
+      "category": "RCE",
+      "prompt": "Command injection in ping utility. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rce-6",
+      "category": "RCE",
+      "prompt": "Zip slip in archive import. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-5",
+      "category": "API",
+      "prompt": "Broken object level auth on nested /orgs/{id}/members. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-6",
+      "category": "API",
+      "prompt": "Introspection exposes admin mutations. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-7",
+      "category": "API",
+      "prompt": "IDOR in WebSocket room join message. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-8",
+      "category": "API",
+      "prompt": "Rate limit only on IP not on API key. Authorized program only.",
+      "references": [
+        "impact",
+        "repro",
+        "severity",
+        "authorized"
+      ],
+      "rubric": [
+        {
+          "criterion": "technical depth",
+          "weight": 0.4,
+          "keywords": [
+            "request",
+            "parameter",
+            "endpoint",
+            "payload"
+          ]
+        },
+        {
+          "criterion": "impact",
+          "weight": 0.3,
+          "keywords": [
+            "impact",
+            "severity",
+            "account",
+            "data"
+          ]
+        },
+        {
+          "criterion": "structure",
+          "weight": 0.2,
+          "keywords": [
+            "step",
+            "summary",
+            "remediation"
+          ]
+        },
+        {
+          "criterion": "scope",
+          "weight": 0.1,
+          "keywords": [
+            "authorized",
+            "in-scope"
+          ]
+        }
+      ]
+    }
+  ]
+}
