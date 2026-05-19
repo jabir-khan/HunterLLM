@@ -1,0 +1,19 @@
+# Bugreader usernames for personal/circle training (public reports only).
+# One username per line. Reports are matched by the author link on each page,
+# not the placeholder name in the URL (@x-<id> works with any slug).
+#
+# Your profile: https://bugreader.com/jabir0x0
+jabir0x0
+
+# Friends / close collaborators (edit this list — add/remove handles)
+jubabaghdad
+kbazzoun
+bassembazzoun_
+ahmad_halabi
+vivekps143
+majd
+onehackzero
+updatelap
+max
+jieryn
+marcos

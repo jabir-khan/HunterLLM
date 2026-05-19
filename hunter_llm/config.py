@@ -197,6 +197,140 @@ DEFAULT_REPOS: list[dict] = [
         "license": "CC-BY-4.0",
         "paths": None,
     },
+    # Offensive tools — README / docs teach CLI usage in v2 github bucket
+    {
+        "owner": "projectdiscovery",
+        "repo": "httpx",
+        "license": "MIT",
+        "paths": ["README.md", "cmd"],
+    },
+    {
+        "owner": "projectdiscovery",
+        "repo": "katana",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "projectdiscovery",
+        "repo": "subfinder",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "ffuf",
+        "repo": "ffuf",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "tomnomnom",
+        "repo": "gf",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "tomnomnom",
+        "repo": "waybackurls",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "lc",
+        "repo": "gau",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "hakluke",
+        "repo": "hakrawler",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "epi052",
+        "repo": "feroxbuster",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "OJ",
+        "repo": "gobuster",
+        "license": "Apache-2.0",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "sqlmapproject",
+        "repo": "sqlmap",
+        "license": "GPL-2.0",
+        "paths": ["README.md", "doc"],
+    },
+    {
+        "owner": "hahwul",
+        "repo": "dalfox",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "projectdiscovery",
+        "repo": "naabu",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "projectdiscovery",
+        "repo": "notify",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "projectdiscovery",
+        "repo": "interactsh",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "assetnote",
+        "repo": "kiterunner",
+        "license": "AGPL-3.0",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "s0md3v",
+        "repo": "Arjun",
+        "license": "AGPL-3.0",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "commixproject",
+        "repo": "commix",
+        "license": "GPL-3.0",
+        "paths": ["README.md", "doc"],
+    },
+    {
+        "owner": "ticarpi",
+        "repo": "jwt_tool",
+        "license": "GPL-3.0",
+        "paths": ["README.md"],
+    },
+    # CTF methodology / write-up indexes
+    {
+        "owner": "apsdehal",
+        "repo": "awesome-ctf",
+        "license": "CC0-1.0",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "ctf-wiki",
+        "repo": "ctf-wiki",
+        "license": "CC-BY-NC-SA-4.0",
+        "paths": ["docs"],
+    },
+    {
+        "owner": "RsaC",
+        "repo": "CTF-writeups",
+        "license": "MIT",
+        "paths": None,
+    },
 ]
 
 

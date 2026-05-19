@@ -17,3 +17,16 @@ to harvest permalinks the way we do for static blogs or RSS.
 
 If Bugreader later publishes a public RSS feed, sitemap, or documented read-only API, we can wire it into
 `discover-writeup-urls` the same way as Medium feeds.
+
+## Circle ingest (you + friends)
+
+Public reports use ``/<username>@x-<id>`` but the **username in the URL is a placeholder**.
+The real author is the profile link in the report header.
+
+```bash
+# Edit handles: data/urls/bugreader_circle.txt  (jabir0x0 + friends)
+hunter-llm collect-bugreader-circle
+```
+
+This merges into ``data/raw/personal_reports.jsonl`` (with your local
+``data/personal/reports/*.md`` if present). Profile: https://bugreader.com/jabir0x0

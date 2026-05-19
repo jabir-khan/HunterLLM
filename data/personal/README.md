@@ -57,16 +57,23 @@ Keep:
 
 ## Ingesting
 
-After you drop reports into `reports/`, run:
+**Local markdown** (your private notes):
 
 ```bash
 hunter-llm collect-personal
 ```
 
-This produces `data/raw/personal_reports.jsonl`. The v3 dataset builder
-then turns each report into 3–5 task-shaped training pairs (write the
-report, walk through the methodology, suggest next probes given a
-fragment of the request).
+**Bugreader circle** (your public profile + friends on [Bugreader](https://bugreader.com/jabir0x0)):
+
+Edit `data/urls/bugreader_circle.txt` (usernames), then:
+
+```bash
+hunter-llm collect-bugreader-circle
+```
+
+This merges Bugreader bodies + local `reports/*.md` into
+`data/raw/personal_reports.jsonl`. The v3 builder emits 3–5 task-shaped
+pairs per report (full report, methodology, impact, exploit snippets).
 
 ## Privacy guarantees
 

@@ -1,0 +1,10 @@
+# CTF / lab methodology (authorized training context).
+# Best coverage: clone CTF repos via `hunter-llm collect-github` (ctf-wiki, RsaC/CTF-writeups).
+# These URLs supplement writeups when HTML extraction works:
+
+https://googleprojectzero.blogspot.com/
+https://portswigger.net/web-security/cross-site-scripting
+https://portswigger.net/web-security/sql-injection
+https://portswigger.net/web-security/ssrf
+https://portswigger.net/web-security/file-path-traversal
+https://portswigger.net/web-security/deserialization

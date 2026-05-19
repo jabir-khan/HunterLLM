@@ -213,6 +213,75 @@ def collect_personal(
         console.print(f"  [red]secret warning[/red] {name}: {', '.join(hits)} -- sanitize before training!")
 
 
+@app.command("collect-bugreader-circle")
+def collect_bugreader_circle(
+    authors_file: Path = typer.Option(
+        Path("data/urls/bugreader_circle.txt"),
+        "--authors-file",
+        help="Usernames to treat as personal/circle (one per line). Default includes jabir0x0 + friends.",
+    ),
+    out: Path | None = typer.Option(None, help="Default: data/raw/personal_reports.jsonl"),
+    start_id: int = typer.Option(1, "--start-id"),
+    end_id: int = typer.Option(305, "--end-id"),
+    merge_local_md: bool = typer.Option(
+        True,
+        "--merge-local-md/--no-merge-local-md",
+        help="Also ingest data/personal/reports/*.md into the same JSONL.",
+    ),
+    pause: float = typer.Option(0.2, "--pause"),
+    ids_file: Path | None = typer.Option(
+        Path("data/urls/bugreader_reports.txt"),
+        "--ids-file",
+        help="Use known report URLs instead of scanning 1..end-id (much faster).",
+    ),
+    no_discover: bool = typer.Option(
+        False,
+        "--no-discover",
+        help="Only use --ids-file URLs; do not probe the full ID range.",
+    ),
+):
+    """Ingest public Bugreader reports by *real* author (profile link), not URL slug.
+
+    Your profile: https://bugreader.com/jabir0x0 — edit ``data/urls/bugreader_circle.txt``
+    to add friends' handles. Merges with local markdown reports when ``--merge-local-md``.
+    """
+    from hunter_llm.collect.bugreader import ingest_bugreader_circle, load_usernames_file
+
+    if not authors_file.is_file():
+        console.print(f"[red]Missing {authors_file}[/red]")
+        raise typer.Exit(code=1)
+    authors = load_usernames_file(authors_file)
+    if not authors:
+        console.print("[red]No usernames in authors file[/red]")
+        raise typer.Exit(code=1)
+    out_path = out or (settings.raw_dir / "personal_reports.jsonl")
+    local = Path("data/personal/reports") if merge_local_md else None
+    console.print(
+        f"[bold]Bugreader circle ingest[/bold] authors={authors} ids={start_id}..{end_id}"
+    )
+    stats = ingest_bugreader_circle(
+        authors=authors,
+        out_path=out_path,
+        start_id=start_id,
+        end_id=end_id,
+        pause_sec=pause,
+        append_local_md=local,
+        ids_file=ids_file if (ids_file and ids_file.is_file()) else None,
+        discover=not no_discover,
+    )
+    t = Table(title="Bugreader circle")
+    t.add_column("metric")
+    t.add_column("value", justify="right")
+    for k, v in stats.items():
+        if k == "by_author":
+            continue
+        t.add_row(k, str(v))
+    console.print(t)
+    if stats.get("by_author"):
+        console.print(f"[dim]by_author: {stats['by_author']}[/dim]")
+    console.print(f"[green]Wrote[/green] {stats['written']} rows -> {out_path}")
+
+
 def _comma_sep_paths(csv: str | None) -> list[Path]:
     if not csv:
         return []
