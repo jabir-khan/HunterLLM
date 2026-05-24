@@ -1,0 +1,8 @@
+peft>=0.10.0
+bitsandbytes>=0.43.0
+accelerate>=0.27.0
+transformers>=4.40.0
+sentencepiece
+protobuf
+# Optional on A100 endpoint for faster attention (handler falls back if missing):
+# flash-attn>=2.5.0
