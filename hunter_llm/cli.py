@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import glob
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -528,6 +529,15 @@ def build_dataset_v3(
     patt_root: Path = typer.Option(Path("data/raw/repos/PayloadsAllTheThings"), "--patt-root"),
     nuclei_root: Path = typer.Option(Path("data/raw/repos/nuclei-templates"), "--nuclei-root"),
     personal_jsonl: Path = typer.Option(Path("data/raw/personal_reports.jsonl"), "--personal"),
+    reasoning_jsonl: Path = typer.Option(Path("data/curated/reasoning_chains.jsonl"), "--reasoning"),
+    report_reasoning: bool = typer.Option(
+        True,
+        "--report-reasoning/--no-report-reasoning",
+        help="Reframe disclosed HackerOne (.json) + Bugreader reports as 'brief me + hunt similar' pairs.",
+    ),
+    hackerone_cap: int = typer.Option(
+        700, "--hackerone-cap", help="Max HackerOne report-reasoning pairs (Bugreader is uncapped)."
+    ),
     nuclei_max_per_dir: int = typer.Option(8),
     dedup: bool = typer.Option(True, "--dedup/--no-dedup"),
     dedup_threshold: float = typer.Option(0.94),
@@ -562,6 +572,9 @@ def build_dataset_v3(
         patt_root=patt_root,
         nuclei_root=nuclei_root,
         personal_jsonl=personal_jsonl,
+        reasoning_jsonl=reasoning_jsonl if reasoning_jsonl.is_file() else None,
+        report_reasoning_paths=raw_files if report_reasoning else None,
+        hackerone_cap=hackerone_cap,
         nuclei_max_per_dir=nuclei_max_per_dir,
     )
 
@@ -616,9 +629,132 @@ def eval_benchmark(
         )
     console.print(table)
     console.print(
-        f"[dim]{len(tasks)} tasks — score answers with "
-        f"`hunter-llm eval-score --answers answers.jsonl`.[/dim]"
+        f"[dim]{len(tasks)} tasks — run model with `hunter-llm eval-run`, "
+        f"then score with `hunter-llm eval-score data/eval/answers.jsonl`.[/dim]"
     )
+
+
+@app.command("eval-run")
+def eval_run_cmd(
+    out: Path = typer.Option(
+        Path("data/eval/answers.jsonl"),
+        "--out",
+        help="JSONL output: one {task_id, answer} per line (appended; use --no-resume to overwrite).",
+    ),
+    benchmark_path: Path = typer.Option(Path("data/eval/benchmark.json"), "--benchmark"),
+    resume: bool = typer.Option(True, "--resume/--no-resume", help="Skip task_ids already in --out."),
+    limit: int | None = typer.Option(None, "--limit", help="Only run the first N benchmark tasks."),
+    score_only: bool = typer.Option(
+        False,
+        "--score-only",
+        help="Skip generation; score existing --out and print mean.",
+    ),
+    base_model: str | None = typer.Option(
+        None,
+        "--base-model",
+        help="HF base id for local inference (with --adapter-dir).",
+    ),
+    adapter_dir: Path | None = typer.Option(
+        None,
+        "--adapter-dir",
+        help="LoRA folder for local GPU inference.",
+    ),
+    merged_model: Path | None = typer.Option(
+        None,
+        "--merged-model",
+        help="Merged weights folder for local inference.",
+    ),
+    no_4bit: bool = typer.Option(False, "--no-4bit", help="Disable 4-bit load for local inference."),
+    endpoint_url: str | None = typer.Option(
+        None,
+        "--endpoint-url",
+        help="HF Inference Endpoint URL (defaults to ENDPOINT_URL env).",
+    ),
+    endpoint_mode: str = typer.Option(
+        "custom",
+        "--endpoint-mode",
+        help="custom (handler.py) or openai (vLLM / OpenAI-compatible).",
+    ),
+    endpoint_model: str | None = typer.Option(
+        None,
+        "--endpoint-model",
+        help="Model id for openai mode (defaults to ENDPOINT_MODEL env).",
+    ),
+    hf_token: str | None = typer.Option(None, "--hf-token", help="Defaults to HF_TOKEN env."),
+    max_new_tokens: int = typer.Option(512, "--max-new-tokens"),
+    fast: bool = typer.Option(False, "--fast", help="Greedy decode (temperature 0)."),
+    timeout: int = typer.Option(180, "--timeout", help="Per-request timeout seconds (endpoint)."),
+    system_prompt: str | None = typer.Option(
+        None,
+        "--system-prompt",
+        help="Override system prompt (defaults to HUNTER_SYSTEM_PROMPT or SYSTEM_BUG_HUNTER).",
+    ),
+):
+    """Run all benchmark prompts through the model; writes answers.jsonl for eval-score."""
+    from hunter_llm.eval.run_benchmark import run_benchmark
+
+    if not benchmark_path.is_file():
+        console.print(f"[red]Missing {benchmark_path}[/red]")
+        raise typer.Exit(code=1)
+
+    url = (endpoint_url or os.environ.get("ENDPOINT_URL") or os.environ.get("HUNTER_ENDPOINT_URL") or "").strip()
+
+    if score_only:
+        if not out.is_file():
+            console.print(f"[red]Missing {out} — run eval-run first[/red]")
+            raise typer.Exit(code=1)
+        from hunter_llm.eval.benchmark import score_tasks_with_reference
+
+        result = score_tasks_with_reference(benchmark_path, out)
+        console.print(
+            f"[green]mean={result['mean']:.3f}[/green] "
+            f"count={int(result['count'])} min={result.get('min', 0):.3f} max={result.get('max', 0):.3f}"
+        )
+        return
+
+    if not url and merged_model is None and adapter_dir is None:
+        console.print(
+            "[red]Set ENDPOINT_URL (remote) or pass --adapter-dir / --merged-model (local CUDA).[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    backend = f"endpoint {url[:48]}…" if url else f"local adapter={adapter_dir} merged={merged_model}"
+    console.print(f"[bold]eval-run[/bold] → {out} ({backend})")
+
+    try:
+        summary = run_benchmark(
+            benchmark_path=benchmark_path,
+            out_path=out,
+            system_prompt=system_prompt,
+            resume=resume,
+            limit=limit,
+            base_model=base_model,
+            adapter_dir=adapter_dir,
+            merged_model=merged_model,
+            use_4bit=not no_4bit,
+            endpoint_url=url or None,
+            endpoint_mode=endpoint_mode,
+            endpoint_model=endpoint_model,
+            hf_token=hf_token,
+            max_new_tokens=max_new_tokens,
+            fast=fast,
+            request_timeout=timeout,
+        )
+    except Exception as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        f"[green]generated={summary['generated']}[/green] "
+        f"skipped={summary['skipped_resume']} errors={summary['errors']}"
+    )
+    if "mean" in summary:
+        console.print(
+            f"[bold green]mean={summary['mean']:.3f}[/bold green] "
+            f"scored={summary.get('count_scored')} "
+            f"min={summary.get('min', 0):.3f} max={summary.get('max', 0):.3f}"
+        )
+    console.print(f"[dim]Score again: hunter-llm eval-score {out}[/dim]")
 
 
 @app.command("eval-score")

@@ -105,6 +105,47 @@ def build_model_and_tokenizer(args: argparse.Namespace):
     return model, tok
 
 
+def generate_reply(
+    model,
+    tokenizer,
+    *,
+    system_prompt: str,
+    user_message: str,
+    max_new_tokens: int = 1024,
+    temperature: float = 0.7,
+    top_p: float = 0.9,
+    do_sample: bool = True,
+) -> str:
+    """Single-turn chat completion (no streaming). Used by eval-run and scripts."""
+    messages = [
+        {"role": "system", "content": system_prompt.strip()},
+        {"role": "user", "content": user_message.strip()},
+    ]
+    prompt = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+    dev = next(model.parameters()).device
+    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = {k: v.to(dev) for k, v in inputs.items()}
+    gen_kwargs: dict = dict(
+        **inputs,
+        max_new_tokens=max_new_tokens,
+        pad_token_id=tokenizer.pad_token_id,
+        eos_token_id=_llama3_stop_token_ids(tokenizer),
+    )
+    if do_sample:
+        gen_kwargs.update(do_sample=True, temperature=temperature, top_p=top_p)
+    else:
+        gen_kwargs["do_sample"] = False
+
+    with torch.inference_mode():
+        out = model.generate(**gen_kwargs)
+    text = tokenizer.decode(out[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True)
+    return text.strip()
+
+
 def main() -> None:
     args = parse_args()
     if not args.merged_model and args.adapter_dir is None:

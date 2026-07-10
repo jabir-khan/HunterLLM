@@ -8,9 +8,13 @@ Setup:
   export HF_TOKEN=hf_...
   export ENDPOINT_URL=https://xxxxx.region.aws.endpoints.huggingface.cloud
 
-Set ENDPOINT_STREAM=0 to disable streamed tokens (still uses OpenAI mode's non-stream API).
+Environment (optional `.env`): `ENDPOINT_MODE` (`openai`|`custom`),
+`ENDPOINT_STREAM`, `ENDPOINT_DEFAULT_MAX_NEW_TOKENS`,
+`ENDPOINT_MAX_NEW_TOKENS_CEILING`, `ENDPOINT_STREAM_READ_TIMEOUT`,
+`ENDPOINT_STREAM_READ_IDLE_UNLIMITED=1`,
+`ENDPOINT_STREAM_REASONING=1`. Set `ENDPOINT_STREAM=0` to disable streamed tokens.
 
-Or put those in repo-root `.env`, then:
+Or put vars in repo-root `.env`, then:
 
   python scripts/hf_inference_endpoint/chat_browser.py
   python scripts/hf_inference_endpoint/chat_browser.py --share  # temporary public link
@@ -24,6 +28,7 @@ import os
 import socket
 import sys
 from collections.abc import Iterator
+from typing import Any
 from pathlib import Path
 
 import requests
@@ -37,7 +42,43 @@ from hunter_llm.load_dotenv_utils import load_dotenv_if_present
 from hunter_llm.prompts import SYSTEM_ENDPOINT_CHAT
 
 
-def _endpoint_config() -> tuple[str, str, str, str, bool, int, bool]:
+load_dotenv_if_present()
+
+
+def _token_ceiling() -> int:
+    """Upper bound on max_new_tokens (from env after `.env` is loaded)."""
+    return max(512, min(8192, int(os.environ.get("ENDPOINT_MAX_NEW_TOKENS_CEILING") or "4096")))
+
+
+_TRUNCATION_NOTE = (
+    "\n\n**Note:** Reply stopped because it hit **`max_tokens`**. "
+    "Open **Generation settings** and raise **max_new_tokens**, or shorten the prompt / history."
+)
+
+
+def _stream_read_timeout(request_timeout_s: float) -> float | None:
+    """Seconds without a new SSE byte before disconnect. None disables (not recommended).
+
+    Uses ENDPOINT_STREAM_READ_IDLE_UNLIMITED=1 for None,
+    ENDPOINT_STREAM_READ_TIMEOUT if set as float seconds, else mirrors request slider.
+    """
+    if os.environ.get("ENDPOINT_STREAM_READ_IDLE_UNLIMITED", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return None
+    raw = (os.environ.get("ENDPOINT_STREAM_READ_TIMEOUT") or "").strip()
+    if raw:
+        return float(raw)
+    return float(request_timeout_s)
+
+
+def _append_truncation_notice(text: str, finish_reason: str | None) -> str:
+    if finish_reason != "length":
+        return text
+    if "**max_tokens**" in text and "Generation settings" in text:
+        return text
+    return text + _TRUNCATION_NOTE
+
+
+def _endpoint_config() -> tuple[str, str, str, str, bool, int, bool, int, int]:
     load_dotenv_if_present()
     url = (os.environ.get("ENDPOINT_URL") or os.environ.get("HUNTER_ENDPOINT_URL") or "").strip().rstrip("/")
     token = (os.environ.get("HF_TOKEN") or "").strip()
@@ -55,7 +96,10 @@ def _endpoint_config() -> tuple[str, str, str, str, bool, int, bool]:
         raise SystemExit("Set HF_TOKEN (write or fine-grained with endpoint access).")
     if mode not in {"custom", "openai"}:
         raise SystemExit("ENDPOINT_MODE must be 'custom' (handler.py) or 'openai' (vLLM).")
-    return url, token, mode, model_id, fast, max_history, stream
+    default_mnt_raw = os.environ.get("ENDPOINT_DEFAULT_MAX_NEW_TOKENS") or ("512" if mode == "openai" else "256")
+    ceil = _token_ceiling()
+    default_mnt = max(32, min(ceil, int(default_mnt_raw)))
+    return url, token, mode, model_id, fast, max_history, stream, default_mnt, ceil
 
 
 def _call_custom_handler(
@@ -137,35 +181,66 @@ def _call_openai_vllm(
         raise RuntimeError(f"Endpoint HTTP {resp.status_code}: {resp.text[:2000]}")
     data = resp.json()
     try:
-        return str(data["choices"][0]["message"]["content"]).strip()
+        choice0 = data["choices"][0]
+        msg = str(choice0["message"]["content"])
+        finish = choice0.get("finish_reason") if isinstance(choice0, dict) else None
+        return _append_truncation_notice(msg.strip(), str(finish) if finish else None)
     except (KeyError, IndexError, TypeError) as e:
         raise RuntimeError(f"Unexpected OpenAI response: {data!r}") from e
 
 
-def _iter_openai_sse_deltas(response: requests.Response) -> Iterator[str]:
-    """Parse OpenAI-style SSE chunks from `/v1/chat/completions` (stream=true)."""
+def _iter_openai_sse_data_objects(response: requests.Response) -> Iterator[dict[str, Any]]:
+    """Yield JSON objects after each `data: ` SSE line."""
     for raw in response.iter_lines(decode_unicode=True):
-        if raw is None or not isinstance(raw, str):
+        if raw is None:
+            continue
+        if not isinstance(raw, str):
             continue
         line = raw.strip()
-        if not line.startswith("data:"):
+        if not line:
             continue
-        payload = line[5:].strip()
+        if line.startswith(":"):
+            continue  # SSE comment / keep-alive
+        if not line.lower().startswith("data:"):
+            continue
+        payload = line[5:].lstrip()
         if payload == "[DONE]":
             break
         try:
             obj = json.loads(payload)
         except json.JSONDecodeError:
             continue
-        choices = obj.get("choices")
-        if not isinstance(choices, list) or not choices:
-            continue
-        delta = choices[0].get("delta") if isinstance(choices[0], dict) else None
-        if not isinstance(delta, dict):
-            continue
-        chunk = delta.get("content") or ""
-        if chunk:
-            yield str(chunk)
+        if isinstance(obj, dict):
+            yield obj
+
+
+def _chunks_from_sse_choice_delta(obj: dict[str, Any]) -> tuple[list[str], str | None]:
+    """Extract streamed text fragments and optional finish_reason from one SSE chunk."""
+    pieces: list[str] = []
+    finish_reason: str | None = None
+    choices = obj.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return pieces, finish_reason
+    c0 = choices[0]
+    if not isinstance(c0, dict):
+        return pieces, finish_reason
+    fr_raw = c0.get("finish_reason")
+    if fr_raw:
+        finish_reason = str(fr_raw)
+    delta = c0.get("delta")
+    if isinstance(delta, dict):
+        content = delta.get("content") or ""
+        if content:
+            pieces.append(str(content))
+        reasoning = delta.get("reasoning_content") or ""
+        if reasoning and os.environ.get("ENDPOINT_STREAM_REASONING", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }:
+            pieces.append(str(reasoning))
+    return pieces, finish_reason
 
 
 def _stream_openai_vllm(
@@ -178,6 +253,7 @@ def _stream_openai_vllm(
     temperature: float,
     top_p: float,
     timeout: int,
+    finish_holder: dict[str, str | None],
 ) -> Iterator[str]:
     api_url = _openai_chat_url(url)
     payload = {
@@ -188,11 +264,15 @@ def _stream_openai_vllm(
         "top_p": top_p,
         "stream": True,
     }
+    read_timeout = _stream_read_timeout(float(timeout))
+    timeouts: tuple[float, float | None] = (45.0, read_timeout)
+
+    finish_holder.setdefault("reason", None)
     with requests.post(
         api_url,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         json=payload,
-        timeout=(30, timeout),
+        timeout=timeouts,
         stream=True,
     ) as resp:
         if resp.status_code >= 400:
@@ -202,7 +282,13 @@ def _stream_openai_vllm(
             except Exception:
                 pass
             raise RuntimeError(f"Endpoint HTTP {resp.status_code}: {body}")
-        yield from _iter_openai_sse_deltas(resp)
+
+        for obj in _iter_openai_sse_data_objects(resp):
+            frags, finish = _chunks_from_sse_choice_delta(obj)
+            if finish:
+                finish_holder["reason"] = finish
+            for frag in frags:
+                yield frag
 
 
 def _call_endpoint(
@@ -259,6 +345,8 @@ def build_ui(
     default_fast: bool,
     default_max_history: int,
     default_stream: bool,
+    default_max_new_tokens: int,
+    tokens_ceiling: int,
 ):
     try:
         import gradio as gr
@@ -311,6 +399,7 @@ def build_ui(
         try:
             if use_stream:
                 parts: list[str] = []
+                finish_holder: dict[str, str | None] = {"reason": None}
                 for delta in _stream_openai_vllm(
                     url=url,
                     token=token,
@@ -320,13 +409,17 @@ def build_ui(
                     temperature=gen_temperature,
                     top_p=float(top_p),
                     timeout=int(request_timeout),
+                    finish_holder=finish_holder,
                 ):
                     parts.append(delta)
                     yield "", history + [
                         {"role": "user", "content": user_turn},
                         {"role": "assistant", "content": "".join(parts)},
                     ]
-                reply = "".join(parts).strip() or "(empty response)"
+                reply = _append_truncation_notice(
+                    "".join(parts).strip() or "(empty response)",
+                    finish_holder.get("reason"),
+                )
                 yield "", history + [
                     {"role": "user", "content": user_turn},
                     {"role": "assistant", "content": reply},
@@ -364,8 +457,8 @@ Chat via your **Hugging Face Inference Endpoint**. Token stays on this machine.
 
 Use only on **authorized** targets (bug bounty / pentest / lab).
 
-**Speed tips:** With **OpenAI/vLLM** (`ENDPOINT_MODE=openai`), turn on **Stream replies** so text appears token-by-token. Also keep **Fast mode** when you want greedy decode,
-**max_new_tokens ≤ 128**, and concise prompts. HF **custom handlers** still return one JSON payload per request — use vLLM + OpenAI mode for streamed output.
+**Speed tips:** **OpenAI/vLLM** (`ENDPOINT_MODE=openai`): use **Stream replies** for quicker time-to-first-token; raise **max_new_tokens** if answers stop mid-thought (**hit max_tokens / length**).
+**Fast mode** = greedy decode (faster). **Custom handler** returns one JSON body (no SSE). For **terminal + browser + proxy agent loops**, install **[Strix](https://github.com/usestrix/strix)** and follow `docs/agent_strix.md` to point Strix at this model.
 """
         )
         chatbot = gr.Chatbot(height=480, label="Chat")
@@ -387,11 +480,22 @@ Use only on **authorized** targets (bug bounty / pentest / lab).
                 label="Stream replies (token-by-token; OpenAI/vLLM only)",
                 interactive=mode == "openai",
             )
-            max_tokens = gr.Slider(32, 512, value=128, step=32, label="max_new_tokens")
+            max_tokens = gr.Slider(
+                32,
+                tokens_ceiling,
+                value=min(default_max_new_tokens, tokens_ceiling),
+                step=64,
+                label=f"max_new_tokens (slider ceiling {tokens_ceiling}; raise via ENDPOINT_MAX_NEW_TOKENS_CEILING)",
+            )
             max_history = gr.Slider(1, 8, value=default_max_history, step=1, label="history turns kept")
             temperature = gr.Slider(0.0, 1.2, value=0.7, step=0.05, label="temperature (ignored in fast mode)")
             top_p = gr.Slider(0.1, 1.0, value=0.9, step=0.05, label="top_p (ignored in fast mode)")
             req_timeout = gr.Slider(30, 600, value=default_timeout, step=30, label="timeout (seconds)")
+            gr.Markdown(
+                "**If replies look chopped:** raise **max_new_tokens**, bump **timeout**, "
+                "or add `ENDPOINT_STREAM_READ_IDLE_UNLIMITED=1` if SSE drops idle mid-generation. "
+                "Unclosed Markdown code fences also break the bubble layout."
+            )
         clear = gr.Button("Clear chat")
 
         inputs = [msg, chatbot, max_tokens, temperature, top_p, req_timeout, fast_mode, max_history, stream_replies]
@@ -426,7 +530,17 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=180, help="Default request timeout seconds")
     args = parser.parse_args()
 
-    url, token, mode, model_id, default_fast, default_max_history, default_stream = _endpoint_config()
+    (
+        url,
+        token,
+        mode,
+        model_id,
+        default_fast,
+        default_max_history,
+        default_stream,
+        default_max_new_tokens,
+        tokens_ceiling,
+    ) = _endpoint_config()
     demo = build_ui(
         url,
         token,
@@ -436,6 +550,8 @@ def main() -> None:
         default_fast=default_fast,
         default_max_history=default_max_history,
         default_stream=default_stream,
+        default_max_new_tokens=default_max_new_tokens,
+        tokens_ceiling=tokens_ceiling,
     )
     port = _resolve_port(args.host, args.port)
     if port != args.port:

@@ -166,6 +166,8 @@ hunter-llm export-dpo                 # synthesize chosen/rejected pairs -> DPO 
 hunter-llm rag-build PATH             # embed JSONL into a retrieval index
 hunter-llm rag-query QUERY            # query the retrieval index
 hunter-llm eval-benchmark             # list benchmark tasks
+hunter-llm eval-run                   # run model on benchmark → answers.jsonl
+hunter-llm eval-score PATH              # score answers.jsonl (rubric mean)
 hunter-llm train                      # QLoRA SFT
 hunter-llm train-dpo                  # QLoRA DPO on preference pairs
 hunter-llm merge-lora                 # bake LoRA into base -> single folder
@@ -174,6 +176,10 @@ hunter-llm hf-push   --repo X --folder Y    # upload model/dataset to Hugging Fa
 hunter-llm hf-pull   --repo X --out    Y    # download model/dataset from Hugging Face
 hunter-llm bootstrap-data --full      # one shot: collect (3y NVD + KEV + ATT&CK) + build + DPO
 ```
+
+### Autonomous agent mode (terminal / browser / proxy)
+
+The repo does **not** embed Cursor-style sandboxes itself. Pair trained weights + an OpenAI-compatible endpoint with **[Strix](https://github.com/usestrix/strix)** → see **`docs/agent_strix.md`** for Hugging Face endpoint wiring (`LLM_API_BASE`, HF token → `LLM_API_KEY`) and execution scope notes.
 
 ---
 

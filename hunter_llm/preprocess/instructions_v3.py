@@ -382,8 +382,16 @@ _TOOL_INVOCATIONS: list[dict[str, str]] = [
 ]
 
 
+def _curated_dir() -> Path:
+    return Path(__file__).resolve().parents[2] / "data" / "curated"
+
+
 def _curated_tool_invocation_path() -> Path:
-    return Path(__file__).resolve().parents[2] / "data" / "curated" / "tool_invocations.jsonl"
+    return _curated_dir() / "tool_invocations.jsonl"
+
+
+def _curated_reasoning_path() -> Path:
+    return _curated_dir() / "reasoning_chains.jsonl"
 
 
 def iter_tool_invocations() -> Iterator[dict[str, Any]]:
@@ -420,6 +428,152 @@ def iter_tool_invocations() -> Iterator[dict[str, Any]]:
             "tags": row.get("tags", []),
             "meta": {"source": "curated_tool", "kind": "tool_invocation"},
         }
+
+
+# ---------------------------------------------------------------------------
+# Reasoning chains — observe→probe, chaining, triage, code review, decisions.
+# ---------------------------------------------------------------------------
+
+
+def iter_reasoning_chains(path: Path | None = None) -> Iterator[dict[str, Any]]:
+    """Curated senior-hunter *reasoning* pairs (data/curated/reasoning_chains.jsonl).
+
+    These teach the model to decide the next move from an observation, chain
+    findings, triage severity, and review code — the signal that separates a
+    thinking operator from a command lookup table. Regenerate the source file
+    with `python scripts/build_reasoning_chains.py`.
+    """
+    src = path or _curated_reasoning_path()
+    if not src.is_file():
+        return
+    with src.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            instr = (row.get("instruction") or "").strip()
+            out = (row.get("output") or "").strip()
+            if not instr or len(out) < MIN_OUTPUT_CHARS:
+                continue
+            if AUTHORIZATION_NOTE not in instr:
+                instr = f"{instr} {AUTHORIZATION_NOTE}"
+            kind = row.get("kind") or "reasoning"
+            tags = row.get("tags") or infer_tags(instr + " " + out)
+            yield {
+                "instruction": instr,
+                "input": (row.get("input") or "").strip(),
+                "output": _trim(out),
+                "tags": tags,
+                "meta": {"source": "reasoning_chain", "kind": f"reasoning_{kind}"},
+            }
+
+
+# ---------------------------------------------------------------------------
+# Disclosed reports (HackerOne .json + Bugreader) -> reasoning-framed pairs.
+# ---------------------------------------------------------------------------
+
+
+def _iter_raw_records(raw_paths: list[Path]) -> Iterator[dict[str, Any]]:
+    for p in raw_paths:
+        if not p or not p.is_file():
+            continue
+        with p.open(encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+
+def _report_reasoning_row(rec: dict[str, Any], source: str) -> dict[str, Any] | None:
+    """Turn one disclosed report record into a single reasoning-framed pair.
+
+    Gold output is the real disclosed body (grounded, not synthesized); the
+    instruction reframes it as a transferable "brief me + how to hunt similar"
+    task so the model learns methodology, not just recall.
+    """
+    text = (rec.get("text") or "").strip()
+    if len(text) < MIN_OUTPUT_CHARS:
+        return None
+    title = (rec.get("title") or "").strip() or "a disclosed finding"
+    program = (rec.get("program") or rec.get("host") or "").strip()
+    asset = (rec.get("asset") or program or "the target").strip()
+    meta = rec.get("meta") or {}
+    url = (rec.get("url") or meta.get("url") or "").strip()
+    tags = rec.get("tags") or infer_tags(f"{title} {text[:2000]}")
+    bug_class = tags[0] if tags else "web"
+    prog_txt = f" on **{program}**" if program else ""
+    instruction = (
+        f"Study how this **{bug_class}** issue was found and disclosed{prog_txt} "
+        f'("{title}"), then brief me like a teammate: the attacker primitive, the '
+        f"reproduction, the impact, and how I would hunt the same bug class on a new "
+        f"authorized target. Keep requests, payloads, and commands in fenced blocks. "
+        f"{AUTHORIZATION_NOTE}"
+    )
+    input_lines = [f"Title: {title}", f"Asset / Program: {asset}", f"Bug class: {bug_class}"]
+    if url:
+        input_lines.append(f"Reference: {url}")
+    return {
+        "instruction": instruction,
+        "input": "\n".join(input_lines) + "\n",
+        "output": _trim(text),
+        "tags": tags or [bug_class],
+        "meta": {
+            "source": f"report_reasoning_{source}",
+            "title": title,
+            "url": url,
+            "kind": f"report_reasoning_{source}",
+        },
+    }
+
+
+def iter_report_reasoning(
+    raw_paths: list[Path],
+    *,
+    bugreader_cap: int | None = None,
+    hackerone_cap: int | None = 700,
+) -> Iterator[dict[str, Any]]:
+    """Emit reasoning-framed pairs from disclosed reports.
+
+    Bugreader records (`meta.bugreader`) and HackerOne `.json` records
+    (`meta.hackerone_json`) are surfaced under a "brief me + hunt similar"
+    instruction. Bugreader is processed first and uncapped by default so the
+    user's own circle of reports is always represented; HackerOne is capped to
+    avoid swamping the dataset. Dedup by title keeps near-identical reposts out.
+    """
+    records = list(_iter_raw_records(raw_paths))
+    seen_titles: set[str] = set()
+
+    def _emit(is_bugreader: bool, cap: int | None) -> Iterator[dict[str, Any]]:
+        n = 0
+        for rec in records:
+            if cap is not None and n >= cap:
+                break
+            meta = rec.get("meta") or {}
+            if is_bugreader and not meta.get("bugreader"):
+                continue
+            if not is_bugreader and not meta.get("hackerone_json"):
+                continue
+            title_key = (rec.get("title") or "").strip().lower()[:80]
+            if title_key and title_key in seen_titles:
+                continue
+            row = _report_reasoning_row(rec, "bugreader" if is_bugreader else "hackerone")
+            if row is None:
+                continue
+            if title_key:
+                seen_titles.add(title_key)
+            n += 1
+            yield row
+
+    yield from _emit(True, bugreader_cap)
+    yield from _emit(False, hackerone_cap)
 
 
 # ---------------------------------------------------------------------------
@@ -547,6 +701,9 @@ def write_v3_extra(
     patt_root: Path | None,
     nuclei_root: Path | None,
     personal_jsonl: Path | None,
+    reasoning_jsonl: Path | None = None,
+    report_reasoning_paths: list[Path] | None = None,
+    hackerone_cap: int | None = 700,
     nuclei_max_per_dir: int = 8,
 ) -> dict[str, int]:
     """Write *only* the v3-new buckets (does not touch v2 buckets)."""
@@ -561,6 +718,10 @@ def write_v3_extra(
         if nuclei_root and nuclei_root.is_dir():
             sources.append(iter_nuclei_templates(nuclei_root, max_per_dir=nuclei_max_per_dir))
         sources.append(iter_tool_invocations())
+        sources.append(iter_reasoning_chains(reasoning_jsonl))
+        report_paths = [p for p in (report_reasoning_paths or []) if p and p.is_file()]
+        if report_paths:
+            sources.append(iter_report_reasoning(report_paths, hackerone_cap=hackerone_cap))
         if personal_jsonl and personal_jsonl.exists():
             sources.append(iter_personal_jsonl(personal_jsonl))
 
