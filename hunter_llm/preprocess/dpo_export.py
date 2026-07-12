@@ -48,34 +48,74 @@ def synthetic_rejected(chosen: str) -> str:
     return weakened
 
 
-def sft_jsonl_to_dpo_jsonl(in_path: Path, out_path: Path, *, limit: int | None = None) -> int:
+def iter_curated_pairs(curated_path: Path) -> "list[dict]":
+    """Load hand-authored {prompt, chosen, rejected} pairs (meta ignored for TRL).
+
+    These teach judgment the synthetic weakening cannot: rejecting false
+    positives, lectures, unverified claims, fabrication, and under-escalation.
     """
-    Each input row: instruction, input, output[, tags, meta].
-    Output JSONL: {"prompt": ..., "chosen": ..., "rejected": ...}
-    """
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    n = 0
-    with in_path.open(encoding="utf-8") as fin, out_path.open("w", encoding="utf-8") as fout:
-        for line in fin:
-            if limit is not None and n >= limit:
-                break
+    rows: list[dict] = []
+    if not curated_path or not curated_path.is_file():
+        return rows
+    with curated_path.open(encoding="utf-8") as f:
+        for line in f:
             line = line.strip()
             if not line:
                 continue
-            row = json.loads(line)
-            chosen = (row.get("output") or "").strip()
-            if len(chosen) < 160:
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
                 continue
-            prompt = _prompt_from_row(row)
-            rejected = synthetic_rejected(chosen)
-            if rejected.strip() == chosen.strip():
+            prompt = (r.get("prompt") or "").strip()
+            chosen = (r.get("chosen") or "").strip()
+            rejected = (r.get("rejected") or "").strip()
+            if not prompt or not chosen or not rejected or chosen == rejected:
                 continue
-            fout.write(
-                json.dumps(
-                    {"prompt": prompt, "chosen": chosen, "rejected": rejected},
-                    ensure_ascii=False,
-                )
-                + "\n"
-            )
+            rows.append({"prompt": prompt, "chosen": chosen, "rejected": rejected})
+    return rows
+
+
+def sft_jsonl_to_dpo_jsonl(
+    in_path: Path,
+    out_path: Path,
+    *,
+    limit: int | None = None,
+    curated_path: Path | None = None,
+) -> int:
+    """
+    Each SFT input row: instruction, input, output[, tags, meta].
+    Output JSONL: {"prompt": ..., "chosen": ..., "rejected": ...}
+
+    Curated hand-authored pairs (``curated_path``) are written first so the
+    highest-signal judgment examples are always present regardless of ``limit``.
+    """
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    n = 0
+    with out_path.open("w", encoding="utf-8") as fout:
+        for pair in iter_curated_pairs(curated_path) if curated_path else []:
+            fout.write(json.dumps(pair, ensure_ascii=False) + "\n")
             n += 1
+        with in_path.open(encoding="utf-8") as fin:
+            for line in fin:
+                if limit is not None and n >= limit:
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                chosen = (row.get("output") or "").strip()
+                if len(chosen) < 160:
+                    continue
+                prompt = _prompt_from_row(row)
+                rejected = synthetic_rejected(chosen)
+                if rejected.strip() == chosen.strip():
+                    continue
+                fout.write(
+                    json.dumps(
+                        {"prompt": prompt, "chosen": chosen, "rejected": rejected},
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+                n += 1
     return n

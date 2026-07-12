@@ -379,6 +379,72 @@ _add(
     "llm_highimpact",
 )
 
+# ---------------------------------------------------------------------------
+# Verification & proof — reproduce + negative control before you believe it
+# ---------------------------------------------------------------------------
+
+_add(
+    "My exploit worked once but I'm not sure it's real. How do I confirm before reporting?",
+    "Sent a request with a payload; got an interesting response (looked like a price changed / an extra field returned). Haven't re-tested.",
+    "A one-off is not a finding — it might be luck (a race window, a cached response, warmed state, leftover session). Confirm deterministically before you trust it:\n\n1. **Reproduce from a clean state.** New incognito session / fresh token, replay the exact request. If it doesn't reproduce, it's not confirmed — keep it as a labeled lead, don't report.\n2. **Isolate the trigger.** Change one variable at a time until you know the *exact* param/header/value that flips the behavior. 'It works sometimes' means you haven't isolated it.\n3. **Negative control (the actual proof).** Run the same request with the payload removed (and/or as a second account you own). The **difference** between control and test is the evidence — capture both request/response pairs side by side.\n4. **Label confidence:** CONFIRMED only after steps 1–3 reproduce; otherwise LIKELY (name the one missing step) or SPECULATIVE.\n\nReport the control-vs-test diff as the core proof. Without it, a triager can't tell your 'bug' from normal behavior — and that's how false positives get closed N/A.",
+    ["Methodology", "Triage"],
+    "verify",
+)
+_add(
+    "Is this blind SSRF real or am I imagining the callback? How do I make it undeniable?",
+    "I put an internal-looking URL in a param; my Burp Collaborator got a DNS hit around the same time. But there's other traffic on my Collaborator too.",
+    "'Around the same time' isn't attribution — you need to prove *your specific probe* caused *that specific callback*. Use a unique, single-use identifier per test:\n\n1. **Unique OAST subdomain per request:** `http://<random-uuid>.oast.fun/` — never reuse it. A hit on that exact subdomain can only come from your payload.\n2. **Correlate the interaction:** confirm the callback's source (the target's egress IP, not your own), protocol (DNS vs full HTTP), and timing against the request you sent.\n3. **Negative control:** send the same request with a benign external URL and with the param removed; neither should produce a hit on the unique subdomain.\n4. **Escalate attribution → impact:** once outbound is proven, try one sensitive internal read (cloud metadata) to lift it from 'blind SSRF' (medium) to a demonstrated critical.\n\nReport = unique-subdomain interaction log + the request that triggered it + source IP. That's undeniable; 'my Collaborator got some hits' is not.",
+    ["SSRF", "Methodology"],
+    "verify",
+)
+_add(
+    "I think I found an IDOR. Before I report, what proof does a triager actually need?",
+    "Changing an id in /api/orders/{id} returned data that isn't mine.",
+    "A triager needs proof that (a) it's cross-account and (b) authz — not obscurity — is broken. Build it with two accounts you own, never real users:\n\n1. **Baseline:** as account A, read your own object (`/api/orders/A_id`) → capture request+response.\n2. **Cross-read:** as account A's token, read account **B**'s object (`B_id`, an account you also control) → capture it returning B's data.\n3. **Negative control:** confirm that *without* A's token (or with a random id that doesn't exist) you get 401/403/404 — this proves the data came from broken object authz, not a public endpoint.\n4. **Scope, don't spray:** one controlled cross-read proves it. Do NOT enumerate the id range across real users — that's out of scope and harms people.\n\nReport = the A-token-reads-B's-object pair + the negative control, plus the data class exposed (PII/financial drives severity). That package is CONFIRMED; a lone 'I changed an id and saw data' is not.",
+    ["IDOR", "BOLA", "Methodology"],
+    "verify",
+)
+_add(
+    "How do I know my XSS actually executes vs just renders as markup?",
+    "The app reflects my `<b>` tag and it shows as bold. I want to claim XSS.",
+    "Rendering ≠ execution — this is the most common XSS false positive. Prove code runs, not that HTML formats:\n\n1. **Force execution, not formatting:** use a payload that fires JS, not one that just styles text — `<img src=x onerror=alert(document.domain)>` or `<svg/onload=alert(document.domain)>`.\n2. **Use `document.domain`, never `alert(1)`:** it proves the executing *origin* to the triager and rules out execution in a sandboxed/null-origin context that wouldn't be exploitable.\n3. **Confirm the sink context:** if the value lands in an attribute, JS string, or template, the breakout differs — match the payload to the context and show it escaping.\n4. **Find a victim other than you:** if it only executes on your own input in your own session, it's self-XSS (informational). Prove a cross-user path (stored, shared link, admin panel rendering your input).\n\nCONFIRMED XSS = `document.domain` alert screenshot + exact request + the cross-user delivery path. 'My bold tag rendered' is not XSS.",
+    ["XSS", "Methodology"],
+    "verify",
+)
+
+# ---------------------------------------------------------------------------
+# Scanner triage — automated hit is a LEAD, not a finding (kills most FP)
+# ---------------------------------------------------------------------------
+
+_add(
+    "nuclei flagged this. Do I report it, and how do I avoid a false positive?",
+    "nuclei output:\n```\n[cors-misconfig] [http] [low] https://api.example.com/v1/status\n[missing-sameSite] [http] [info] https://example.com/\n[tech-detect:nginx] [http] [info] https://example.com/\n```",
+    "None of these are reportable as-is — they're leads and low-signal ones. Triage each against 'does it cross a security boundary?':\n\n- **cors-misconfig (low):** nuclei flags a permissive ACAO header; it's only a bug if it reflects an arbitrary Origin **AND** `Access-Control-Allow-Credentials: true` **AND** the endpoint returns authenticated data. Verify manually: send `Origin: https://evil.example` with creds and check the response reads sensitive data. If ACAO is `*` (no creds) or the endpoint is public → not exploitable, drop it.\n- **missing-sameSite (info):** not a standalone finding; modern browsers default to Lax. Only matters if it enables a real CSRF on a state-changing action — go prove that action instead.\n- **tech-detect nginx (info):** pure fingerprinting, never a finding.\n\nSo: manually confirm the CORS one with a credentialed cross-origin read; if it doesn't leak authed data, report nothing here. Unverified scanner output is the #1 source of false positives — every hit goes through evidence + negative control before it earns the word 'vulnerability'.",
+    ["CORS", "Triage", "Methodology"],
+    "scanner_triage",
+)
+_add(
+    "sqlmap says the parameter is injectable. Can I trust it?",
+    "sqlmap output:\n```\n[INFO] GET parameter 'id' appears to be 'AND boolean-based blind' injectable\n[WARNING] the back-end DBMS could not be identified\n[INFO] heuristic (basic) test shows that GET parameter 'id' might be injectable (possible DBMS: 'MySQL')\n```",
+    "'appears to be' + 'could not identify DBMS' + 'heuristic might be' = sqlmap is not confident, so neither should you be. Boolean-based blind on a heuristic is a classic false positive (WAF, reflection, or a page that just varies). Confirm manually before reporting:\n\n1. **Deterministic boolean oracle:** send a TRUE and a FALSE condition and show a consistent, repeatable response difference:\n```\nid=1' AND '1'='1   -> expect normal page\nid=1' AND '1'='2   -> expect different/empty\n```\nRun each 2–3× to rule out caching/flakiness.\n2. **Rule out benign causes:** does a non-SQL string (`id=1' AND sleep-free garbage`) also change the page? If random input flips it too, it's reflection/error handling, not SQLi.\n3. **Fingerprint deliberately** (only if boolean holds) to confirm a real backend, then stop at proof — don't dump data.\n\nOnly a stable, reproducible boolean/time differential with a negative control is CONFIRMED SQLi. A lone sqlmap 'appears injectable' line is a lead, not a report.",
+    ["SQLi", "Triage", "Methodology"],
+    "scanner_triage",
+)
+_add(
+    "A big nuclei run gave 30 hits. How do I prioritize without drowning in false positives?",
+    "Mixed severities: a couple of 'critical' template hits on old CVEs, several 'high' exposures, lots of info/low headers and tech-detect.",
+    "Don't report top-to-bottom — triage by *reachable, verified impact* and expect the scary-looking ones to be noisy:\n\n1. **Drop the info/low header + tech-detect class immediately** (missing headers, banners, fingerprints) — not findings on their own.\n2. **'Critical' CVE template hits: verify version AND reachability.** nuclei often matches on a banner/path without confirming the vulnerable code is actually exploitable. Check the real version and that the vulnerable endpoint responds as the CVE requires; many are false or unreachable. A CVE match is a hypothesis.\n3. **'High' exposures (exposed .git, config, tokens, backups): verify the content is real and sensitive**, then confirm it's live and in scope. These are often the genuine wins — an exposed `.env` with live creds beats a theoretical CVE.\n4. **For each survivor, do a manual control test** (does removing the trigger change the result?) before it's called confirmed.\n\nOutput a ranked stack: verified-exploitable first, each with the one-line proof; discard the rest. Reporting 30 raw nuclei lines gets you flagged for noise — report the 1–3 you actually confirmed.",
+    ["Triage", "Methodology", "Recon"],
+    "scanner_triage",
+)
+_add(
+    "A secrets scanner hit a key in the JS bundle. Report it as a leaked secret?",
+    "trufflehog / manual grep found `apiKey: \"AIzaSyD...\"` (Google API key) in a public front-end bundle.",
+    "Front-end 'secrets' are usually **not** secrets — client-side code is public by design, and many keys are meant to be there. Verify it's actually sensitive and live before reporting:\n\n1. **Classify the key.** A Google `AIza...` browser key, a Stripe **publishable** (`pk_live`) key, a public Firebase config, or an analytics id are intended to be public → not a finding. A `sk_live`, AWS `AKIA`, a private API token, or a DB cred is a real leak.\n2. **Prove it's live and abusable.** For a real secret, make one minimal authorized call proving it works and is over-privileged (e.g. the key can read data / hit a restricted API). An unrestricted Google Maps key that can be abused for billing is a (low) finding; a properly HTTP-referrer-restricted one is not.\n3. **Negative control:** confirm the key isn't already rotated/dead (a 401 means no impact).\n\nReport only keys that are (a) a secret type that shouldn't be client-side and (b) demonstrably live + abusable, with the bounded proof. 'Found an API key in JS' without classification is the most over-reported false positive there is.",
+    ["InfoLeak", "Crypto", "Triage"],
+    "scanner_triage",
+)
+
 
 def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)

@@ -432,13 +432,20 @@ def export_dpo(
     from_path: Path = typer.Option(Path("data/processed/sft_train.jsonl"), "--from"),
     out: Path = typer.Option(Path("data/processed/dpo_pairs.jsonl")),
     limit: int | None = typer.Option(None, help="Cap rows for smoke tests"),
+    curated: Path = typer.Option(
+        Path("data/curated/dpo_preferences.jsonl"),
+        "--curated",
+        help="Hand-authored preference pairs (judgment: FP/lecture/verify/escalate). Prepended.",
+    ),
 ):
-    """Derive DPO preference pairs from curated SFT JSONL."""
+    """Derive DPO preference pairs from curated SFT JSONL, plus hand-authored pairs."""
     if not from_path.is_file():
         console.print(f"[red]Missing {from_path}. Run build-dataset first.[/red]")
         raise typer.Exit(code=1)
-    n = sft_jsonl_to_dpo_jsonl(from_path, out, limit=limit)
-    console.print(f"[green]Wrote[/green] {n} DPO rows → {out}")
+    curated_path = curated if curated and curated.is_file() else None
+    n = sft_jsonl_to_dpo_jsonl(from_path, out, limit=limit, curated_path=curated_path)
+    extra = f" (incl. curated {curated})" if curated_path else " (no curated file found)"
+    console.print(f"[green]Wrote[/green] {n} DPO rows → {out}{extra}")
 
 
 @app.command("rag-build")
@@ -859,7 +866,10 @@ def bootstrap_data(
     stats = build_curated_dataset(raw_files, out_path)
     console.print(stats)
     dpo_out = settings.processed_dir / "dpo_pairs.jsonl"
-    n_dpo = sft_jsonl_to_dpo_jsonl(out_path, dpo_out)
+    curated_dpo = Path("data/curated/dpo_preferences.jsonl")
+    n_dpo = sft_jsonl_to_dpo_jsonl(
+        out_path, dpo_out, curated_path=curated_dpo if curated_dpo.is_file() else None
+    )
     console.print(f"[green]SFT[/green] {out_path}\n[green]DPO[/green] {n_dpo} pairs → {dpo_out}")
 
 
