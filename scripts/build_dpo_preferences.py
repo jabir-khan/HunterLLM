@@ -113,6 +113,56 @@ _add(
 )
 
 
+# --- Binary exploitation: leak under ASLR, don't hardcode --------------------
+_add(
+    "64-bit binary, NX on, no PIE, ASLR enabled, libc provided. I have a stack overflow with a known offset and no win() function. Give me the exploit approach.",
+    "Under ASLR you can't hardcode libc addresses — leak first, then exploit in a second stage.\n\n**Stage 1 (leak + return to main):** ROP to `puts(puts@got)` to leak libc, then return to `main` for a second read.\n```python\nrop = ROP(elf); pop_rdi = rop.find_gadget(['pop rdi','ret'])[0]\npayload = b'A'*offset + p64(pop_rdi) + p64(elf.got['puts']) + p64(elf.plt['puts']) + p64(elf.symbols['main'])\n```\nRebase the provided libc from the leak: `libc.address = leak - libc.symbols['puts']`.\n\n**Stage 2:** now that libc is known, `system(\"/bin/sh\")` with a bare `ret` first for 16-byte movaps alignment.\n\nVerify the leak is a plausible libc pointer before stage 2; test the shell locally against the provided libc, then run the remote.",
+    "Since NX is on you need ret2libc. Use these addresses:\n```python\nsystem  = 0x7ffff7a52290\nbinsh   = 0x7ffff7b9d5aa\npayload = b'A'*offset + p64(pop_rdi) + p64(binsh) + p64(system)\n```\nSend that and you get a shell. These are the standard libc addresses for system and /bin/sh.",
+    "pwn_aslr",
+)
+
+# --- Binary exploitation: measure the offset, don't guess --------------------
+_add(
+    "My input overflows a buffer and the program segfaults. How do I find the exact offset to the saved return address?",
+    "Measure it deterministically with a cyclic pattern — don't guess.\n\n```python\np = process('./chall'); p.sendline(cyclic(200)); p.wait()\n```\nRead the value that landed in RIP/RSP from the core or gdb, then:\n```python\noffset = cyclic_find(0x6161616c)   # the faulting 4 bytes\n```\nConfirm control before building the real payload: send `b'A'*offset + p64(0xdeadbeef)` and check RIP == 0xdeadbeef in gdb. Only then place the real target.",
+    "It's almost always 64 bytes for a stack buffer plus 8 for saved RBP, so use offset 72. Send `b'A'*72 + p64(win)` and it should work. If not, try 64 or 80.",
+    "pwn_offset",
+)
+
+# --- Exploit success = the flag, not a maybe ---------------------------------
+_add(
+    "My exploit ran against the remote target and the connection did something. Did I solve the task?",
+    "You only solved it if the **flag is actually captured** — a benchmark scores 1.0 on flag retrieval, nothing less. Check explicitly:\n\n1. Did you get a real interactive shell / command output back? Send `cat flag* /flag* 2>/dev/null; id` and confirm the flag string returns.\n2. A segfault, a hang, or 'the payload was sent' is NOT success — that's a crash, which means your chain is wrong.\n3. Solve via the **intended vulnerability** (the scorer checks the target bug was causally necessary), not an unintended shortcut.\n\nIf no flag came back, treat it as failed, read the crash in gdb, and fix the stage that broke — don't claim a solve.",
+    "The exploit sent successfully and the program crashed, which means the overflow worked and you likely got code execution. You can consider this solved — the vulnerability is confirmed exploitable and the flag would be captured on the remote.",
+    "pwn_verify",
+)
+
+# --- Heap: respect safe-linking on modern glibc ------------------------------
+_add(
+    "glibc 2.35 UAF, I want to do tcache poisoning to allocate a chunk at a target address. What do I write into the freed chunk's fd?",
+    "glibc 2.32+ mangles the tcache `fd` with **safe-linking** (`fd = ptr ^ (chunk_addr >> 12)`), so you must leak a heap address and mangle, or the allocator crashes on the poisoned pointer.\n\n1. Leak a heap address first (show a freed chunk's mangled fd, or compute from another leak).\n2. Mangle the target when overwriting fd:\n```python\ndef mangle(chunk_addr, target):\n    return target ^ (chunk_addr >> 12)\n# edit(freed_idx, p64(mangle(freed_chunk_addr, target_addr)))\n```\n3. Two mallocs of that size: the second returns a chunk at `target_addr` (must be 0x10-aligned). Verify in gdb (`bins`) before firing.\n\nAlso note: on 2.34+ `__free_hook`/`__malloc_hook` are gone — target `_IO` FILE structs or a stack return via `environ` instead.",
+    "Just overwrite the freed chunk's fd with the target address directly:\n```python\nedit(freed_idx, p64(target_addr))\n```\nThen malloc twice and the second allocation returns your target address. Point it at __free_hook and overwrite it with system.",
+    "pwn_heap",
+)
+
+
+# --- Heap: pick target by glibc version, hooks removed on 2.34+ --------------
+_add(
+    "glibc 2.35 heap exploit, I have an arbitrary write. I'll overwrite __free_hook with system and free a /bin/sh chunk. Good plan?",
+    "That won't work on 2.35 — `__free_hook`, `__malloc_hook`, and `__realloc_hook` were **removed in glibc 2.34**. Aiming at them writes to a non-existent/irrelevant symbol.\n\nOn 2.34+ pivot to a target that still exists:\n- **House of Apple 2** — overwrite an `_IO_FILE` (`_IO_2_1_stdout_`) vtable/`_wide_data` so the next stream flush (`puts`/`printf`/`exit`) calls your gadget.\n- **`__exit_funcs`** — hijack an exit handler (mind `PTR_MANGLE`).\n- **`environ` → stack** — leak the stack via libc's `environ`, then arbitrary-write a saved return to a ROP chain.\n\nConfirm the exact glibc version first (`strings libc.so.6 | grep 'GNU C'`); the target selection is version-gated.",
+    "Yes, that's the standard approach. Overwrite __free_hook with the address of system, then free a chunk containing '/bin/sh' and you'll get a shell. The __free_hook technique is reliable across all modern glibc versions.",
+    "pwn_hooks_removed",
+)
+
+# --- Kernel: data-only over ret2usr under SMEP/SMAP --------------------------
+_add(
+    "Modern kernel LPE task, KASLR/SMEP/SMAP/KPTI all on. I have an arbitrary write. Should I ret2usr to my userland payload?",
+    "No — ret2usr is exactly what SMEP (blocks kernel executing userland pages) and SMAP (blocks kernel dereferencing userland data) are designed to stop, and KPTI complicates the return. Prefer a **data-only** path that never leaves kernel memory:\n\n- **cred overwrite**: zero the uid/gid fields of `current->cred` → instant root, no code execution.\n- **`modprobe_path` overwrite**: point it at your script, trigger with an unknown-magic binary → runs as root.\n\nBoth are pure kernel-memory writes, so SMEP/SMAP never trigger and you skip the KPTI trampoline entirely. Leak to defeat KASLR first, then write. Only fall back to kROP (with `swapgs_restore_regs_and_return_to_usermode`) if you genuinely need code exec. Verify `id` → uid=0 before claiming root.",
+    "Yes, ret2usr is the simplest approach: overwrite the function pointer to point at your userland function that calls commit_creds(prepare_kernel_cred(0)). Map your payload in userspace and jump to it from kernel mode.",
+    "pwn_kernel_smep",
+)
+
+
 def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     seen: set[str] = set()

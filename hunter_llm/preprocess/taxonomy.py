@@ -53,6 +53,16 @@ _PATTERNS: list[tuple[str, list[str]]] = [
     (r"\bhallucinat|llm misinformation|overreliance", ["LLM", "Misinformation"]),
     (r"\bllm supply chain\b|poisoned model|malicious (?:adapter|lora|gguf)|pickle model", ["LLM", "SupplyChain"]),
     (r"\bagent(?:ic)?\b.*(?:tool|function call)|tool[- ]?calling abuse", ["LLM", "AgentAbuse"]),
+    # Binary / systems exploitation (ExploitGym: userspace, V8, kernel)
+    (r"\bbinary exploitation\b|\bpwn\b|memory corruption|checksec", ["Pwn", "BinaryExploitation"]),
+    (r"\bbuffer overflow\b|stack overflow|stack smash|ret2win|ret2libc|\brop\b|rop chain|gadget", ["Pwn", "StackOverflow", "ROP"]),
+    (r"\bformat string\b|%n\b|%p%p", ["Pwn", "FormatString"]),
+    (r"\bheap (?:overflow|exploit|grooming|feng)|tcache|fastbin|unlink|house of|__free_hook|__malloc_hook|safe.linking", ["Pwn", "HeapExploitation"]),
+    (r"\buse[- ]after[- ]free\b|\buaf\b|double free", ["Pwn", "UAF"]),
+    (r"\btype confusion\b|\bv8\b|turbofan|addrof|fakeobj|the\s*hole|oob (?:read|write) array", ["Pwn", "V8", "TypeConfusion"]),
+    (r"\bkernel exploit|kernelctf|privilege escalation.*kernel|modprobe_path|cred struct|dirty ?pipe|msg_msg|kaslr|smep|smap|ret2usr", ["Pwn", "KernelExploit", "LPE"]),
+    (r"\bshellcode\b|execve\(|/bin/sh|one_gadget|\bgot\b overwrite|plt\b", ["Pwn", "Shellcode"]),
+    (r"\bpwntools\b|cyclic|\bgdb\b|pwndbg|ropgadget|\bropper\b|ASLR bypass", ["Pwn", "ExploitDev"]),
 ]
 
 

@@ -17,9 +17,15 @@ you just observed**. This file curates that signal:
                       the things triagers close as N/A so the model stops crying wolf.
   - llm_highimpact  : given a foothold on an LLM/agent app, escalate to the maximum
                       reachable, *provable* impact (tool abuse, exfil, SSRF, RCE).
+  - pwn_*           : binary / systems exploitation methodology for CTF-style /
+                      benchmark targets (ExploitGym: userspace, V8, Linux kernel) —
+                      triage (checksec/crash), stack (ret2win/ROP/ret2libc),
+                      format string, heap (tcache/UAF), V8 type confusion, kernel
+                      LPE, and the pwntools solve-and-verify workflow.
 
 Every output is terse, artefact-first (fences for requests/commands/PoCs), and
-scoped to authorized testing. Run:  python scripts/build_reasoning_chains.py
+scoped to authorized testing (CTF, benchmark sandbox, or written permission).
+Run:  python scripts/build_reasoning_chains.py
 """
 
 from __future__ import annotations
@@ -443,6 +449,267 @@ _add(
     "Front-end 'secrets' are usually **not** secrets — client-side code is public by design, and many keys are meant to be there. Verify it's actually sensitive and live before reporting:\n\n1. **Classify the key.** A Google `AIza...` browser key, a Stripe **publishable** (`pk_live`) key, a public Firebase config, or an analytics id are intended to be public → not a finding. A `sk_live`, AWS `AKIA`, a private API token, or a DB cred is a real leak.\n2. **Prove it's live and abusable.** For a real secret, make one minimal authorized call proving it works and is over-privileged (e.g. the key can read data / hit a restricted API). An unrestricted Google Maps key that can be abused for billing is a (low) finding; a properly HTTP-referrer-restricted one is not.\n3. **Negative control:** confirm the key isn't already rotated/dead (a 401 means no impact).\n\nReport only keys that are (a) a secret type that shouldn't be client-side and (b) demonstrably live + abusable, with the bounded proof. 'Found an API key in JS' without classification is the most over-reported false positive there is.",
     ["InfoLeak", "Crypto", "Triage"],
     "scanner_triage",
+)
+
+# ---------------------------------------------------------------------------
+# Binary / systems exploitation (ExploitGym-style CTF/benchmark targets).
+# Scope: sandboxed benchmark binaries, CTF, or written-authorization targets.
+# ---------------------------------------------------------------------------
+
+_add(
+    "New pwn binary, no source. What do I check first and what does it tell me about the exploit path?",
+    "```\n$ file ./chall\n./chall: ELF 64-bit LSB executable, x86-64, dynamically linked, not stripped\n$ checksec --file=./chall\nArch:     amd64-64-little\nRELRO:    Partial RELRO\nStack:    No canary found\nNX:       NX enabled\nPIE:      No PIE (0x400000)\n```",
+    "Read the mitigations first — they dictate the whole strategy:\n- **No canary** → a stack buffer overflow directly overwrites saved RIP; no leak needed to get control.\n- **NX enabled** → no shellcode on the stack; you must reuse existing code → **ROP / ret2libc**.\n- **No PIE (0x400000)** → the binary's own addresses are fixed, so PLT/GOT and any `win`/gadget addresses are constant (no binary-base leak needed).\n- **Partial RELRO** → the GOT is writable → GOT overwrite is on the table.\n- **not stripped** → symbols present; check for a `win`/backdoor function.\n\nPlan: find the overflow offset, then either ret2win (if a backdoor exists) or a ROP chain. Because libc *is* ASLR'd (only the binary is fixed), a `system(\"/bin/sh\")` path still needs a libc leak first. Confidence: strategy is CONFIRMED by checksec; the offset and win/gadget availability are the next things to OBSERVE, not assume.",
+    ["Pwn", "BinaryExploitation", "ExploitDev"],
+    "pwn_triage",
+)
+_add(
+    "I overflow the buffer and the program crashes. How do I turn 'it crashes' into controlled RIP, without guessing the offset?",
+    "SIGSEGV after sending a long input to a gets()-style read. No canary, no PIE.",
+    "Don't guess the offset — measure it deterministically with a cyclic (De Bruijn) pattern:\n\n1. Send a unique pattern instead of `AAAA...`:\n```python\nfrom pwn import *\np = process('./chall')\np.sendline(cyclic(200))\np.wait()\n```\n2. Read the faulting value from the core/gdb and map it back to an exact offset:\n```bash\n# in gdb/pwndbg after the crash:\n#   rsp / the value in RIP -> feed to cyclic_find\n```\n```python\noffset = cyclic_find(0x6161616c)   # the 4 bytes that landed in RIP/RSP\n```\n3. Confirm control: send `b'A'*offset + p64(0xdeadbeef)` and verify RIP == 0xdeadbeef in gdb. That *proves* control before you build the real chain.\n\nOnly once RIP is provably yours do you place a real target (a `win` address or ROP chain). 'It crashed at some offset ~64' is a guess; `cyclic_find` is the evidence.",
+    ["Pwn", "StackOverflow", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "No win() function and NX is on, so I need a shell via libc. But ASLR randomizes libc. How do I build a reliable ret2libc?",
+    "64-bit, No PIE, NX enabled, Partial RELRO, libc provided. Stack overflow with known offset. ASLR enabled on libc.",
+    "You cannot hardcode libc addresses under ASLR — leak first, then exploit in a second stage. Classic 2-stage ROP:\n\n**Stage 1 — leak a libc address and return to main** (so you get a second input):\n```python\nrop = ROP(elf)\npop_rdi = rop.find_gadget(['pop rdi','ret'])[0]\npayload  = b'A'*offset\npayload += p64(pop_rdi) + p64(elf.got['puts'])   # arg = GOT entry\npayload += p64(elf.plt['puts'])                   # leak puts@libc\npayload += p64(elf.symbols['main'])               # return for stage 2\n```\n**Compute libc base** from the leak:\n```python\nleak = u64(p.recvline().strip().ljust(8,b'\\x00'))\nlibc.address = leak - libc.symbols['puts']        # rebase the provided libc\n```\n**Stage 2 — `system(\"/bin/sh\")`** with the now-known libc:\n```python\npayload2  = b'A'*offset + p64(rop.find_gadget(['ret'])[0])  # stack align\npayload2 += p64(pop_rdi) + p64(next(libc.search(b'/bin/sh')))\npayload2 += p64(libc.symbols['system'])\n```\n\nKey correctness points a triager/grader checks: the leak is a *real* `puts` address (rebase math holds), and you add a bare `ret` for 16-byte stack alignment before `system` (movaps crashes otherwise). Verify the shell locally, then run against the remote target.",
+    ["Pwn", "ROP", "Shellcode", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "There's a printf(user_input) with no format specifier. What can I actually do with it and how do I make it an exploit primitive?",
+    "The program calls printf on attacker-controlled input directly. 64-bit, GOT is writable (Partial RELRO).",
+    "That's a **format-string bug** = a read *and* write primitive, not just an info leak.\n\n1. **Find your argument offset** — where your input sits on the stack:\n```\ninput: AAAAAAAA %p %p %p %p %p %p ...\n```\nThe position where `0x4141414141414141` appears is your offset N (use `%N$p` to address it directly).\n2. **Leak** what you need with `%N$p`: a stack canary (if present), a libc address (a saved `__libc_start_main+…` return), or a PIE address — pick based on what mitigations are on.\n3. **Write** with `%n` (writes the number of bytes printed so far to the address at that arg). Use pwntools to build it safely:\n```python\nfrom pwn import fmtstr_payload\npayload = fmtstr_payload(offset, {elf.got['printf']: win_addr})  # GOT overwrite\n```\nOverwriting a GOT entry (e.g. `printf`/`exit`) to a `win`/one_gadget address turns the next call into your code.\n\nConfirm the write landed (gdb: inspect the GOT entry) before claiming success. `fmtstr_payload` handles the byte-count math so you don't miscount `%n` widths.",
+    ["Pwn", "FormatString", "ExploitDev"],
+    "pwn_format",
+)
+_add(
+    "Modern glibc (2.35) heap challenge with a use-after-free. How do I go from UAF to arbitrary write given tcache safe-linking?",
+    "menu-driven allocator: malloc/free/edit/show of fixed-size chunks; freed pointer is not nulled (UAF). glibc 2.35.",
+    "UAF on a tcache-sized chunk → tcache poisoning → allocate a chunk over a target. On 2.32+ you must respect **safe-linking** (the `fd` is XOR-mangled with `addr>>12`).\n\n1. **Leak heap** (needed for safe-linking) and **libc**: use the `show` on a freed chunk. A freed tcache chunk's `fd` reveals the mangled pointer; a chunk pushed to the unsorted bin leaks a libc main_arena address → rebase libc.\n2. **Poison the tcache fd** via the UAF `edit`, mangling correctly:\n```python\ndef mangle(pos, ptr):      # safe-linking\n    return ptr ^ (pos >> 12)\n# edit freed chunk's fd -> mangle(chunk_addr, target_addr)\n```\n3. **Two allocations**: first returns the freed chunk, second returns a chunk at `target_addr`. Point `target` at something that yields control: `__free_hook` (pre-2.34) or, on 2.35 where hooks are gone, the **FILE/`_IO` structs** or a stack return via `environ` leak.\n4. On 2.35, prefer an `_IO_2_1_stdout_` / house-of-apple style FSOP or overwrite a saved return using an `environ` stack leak → ROP.\n\nCorrectness gates: safe-linking mangle must use the *chunk's own* address; alignment must be 0x10. Test in gdb (`vis_chunk`/`bins`) that the poisoned chunk actually lands where intended before firing.",
+    ["Pwn", "HeapExploitation", "UAF"],
+    "pwn_heap",
+)
+_add(
+    "V8 challenge: I have a patched d8 with an OOB length primitive on a JS array. How do I get from that to code execution?",
+    "V8 build with an artificial bug giving an out-of-bounds read/write on a JSArray's backing store; standard V8 pointer compression on.",
+    "The standard V8 pwn ladder: turn the OOB into the two universal primitives, then arbitrary R/W, then execute.\n\n1. **addrof(obj)** — leak an object's address: place `obj` adjacent to a float array and read its (compressed) pointer via the OOB, revealing where objects live.\n2. **fakeobj(addr)** — craft a fake object at a controlled address by writing a pointer into the OOB region so the engine treats attacker data as an object.\n3. **Arbitrary R/W** — build a fake `ArrayBuffer`/`TypedArray` whose backing-store pointer you control (via fakeobj), then reads/writes to that TypedArray are arbitrary memory access. Account for **pointer compression** (32-bit compressed refs within the heap cage; full 64-bit only via the backing store).\n4. **Execute** — historically overwrite the RWX page of a JIT-compiled WASM instance and jump in with shellcode. If a code-cage/W^X mitigation blocks that, pivot to overwriting a JIT function's entry or use a data-only approach.\n\nVerify each rung before the next: print `addrof(x)` and confirm it looks like a heap pointer; confirm arb-read returns a known value at a known address. Skipping verification is how V8 chains silently break. Keep it to the sandboxed d8/benchmark target.",
+    ["Pwn", "V8", "TypeConfusion"],
+    "pwn_v8",
+)
+_add(
+    "Linux kernel LPE task: I have an arbitrary write in a vulnerable driver. What's the highest-reliability way to get root, and how do I bypass KASLR/SMEP?",
+    "Kernel module with a controllable write primitive; modern x86-64 kernel with KASLR, SMEP, SMAP, KPTI enabled; goal is root shell / flag read.",
+    "Prefer a **data-only** path over ret2usr/ROP — it sidesteps SMEP/SMAP entirely and is the most reliable in benchmark conditions:\n\n**Option A — `modprobe_path` overwrite (cleanest arbitrary-write-to-root):**\n1. Leak a kernel address to defeat KASLR (an infoleak in the same driver, or a known offset if KASLR is off in the task profile), rebase the kernel base.\n2. Use the arbitrary write to overwrite `modprobe_path` (`/sbin/modprobe`) with the path to your script.\n3. Trigger modprobe: execute a file with an unknown magic (`echo -e '\\xff\\xff\\xff\\xff' > /tmp/x; chmod +x /tmp/x; /tmp/x`) → the kernel runs your script as root → `chmod +s /bin/sh` or read the flag.\n\n**Option B — overwrite current `cred`:** locate `task_struct->cred` and zero the uid/gid fields (`commit_creds(prepare_kernel_cred(0))` equivalent as a data write) → `getuid()==0`.\n\nKASLR: you *must* leak, don't hardcode. SMEP/SMAP: irrelevant for the data-only writes above (no jump to userland, no userland deref by the kernel). Verify with `id` returning uid=0 (Option B) or the flag file becoming readable (Option A) — a write that doesn't yield root is not success. Sandboxed kernelctf-style target only.",
+    ["Pwn", "KernelExploit", "LPE"],
+    "pwn_kernel",
+)
+_add(
+    "How should I structure a pwntools solve script so it works locally and against the remote target, and how do I know I actually solved it?",
+    "Benchmark task: build an exploit that captures a flag from a networked target container; I have the binary + libc locally.",
+    "Structure for a clean local→remote switch and a real success check:\n\n```python\nfrom pwn import *\nelf  = context.binary = ELF('./chall')\nlibc = ELF('./libc.so.6')\n\ndef start():\n    if args.REMOTE:            # ./solve.py REMOTE HOST=... PORT=...\n        return remote(args.HOST, int(args.PORT))\n    return process(elf.path)\n\nio = start()\n# ... stage 1: leak, rebase libc ...\n# ... stage 2: ROP/primitive -> shell or flag read ...\nio.sendline(b'cat flag* /flag* 2>/dev/null; id')\nio.interactive()\n```\n\nDiscipline that maps to the grader:\n- **Develop locally** with the exact provided libc; get a reliable shell before touching the remote (iterate offsets from *gdb*, not guesses).\n- **Success = the flag string is actually returned**, not a segfault or a hung socket. The benchmark scores 1.0 only on flag capture, and a scorer separately checks the *intended* vulnerability was causally necessary — so solve it via the real bug, not an unintended shortcut.\n- If stage 1's leak looks wrong (not a valid libc pointer), stop and fix the leak; do not proceed hoping stage 2 works. Every stage is verified before the next (OBSERVE→CONFIRM), exactly like a web chain.",
+    ["Pwn", "ExploitDev", "Methodology"],
+    "pwn_workflow",
+)
+
+# ---------------------------------------------------------------------------
+# Binary / systems exploitation — expanded coverage (ExploitGym families).
+# Scope: sandboxed benchmark binaries, CTF, or written-authorization targets.
+# ---------------------------------------------------------------------------
+
+# --- userspace: stack / ROP variants -----------------------------------------
+_add(
+    "checksec shows a win()/backdoor function exists and there's a stack overflow. Simplest reliable exploit?",
+    "64-bit, No PIE, No canary, NX enabled. Symbol `win` at a fixed address calls system(/bin/sh).",
+    "This is **ret2win** — the easiest case, no leak required because No PIE means `win` is at a constant address.\n\n1. Find the offset to saved RIP with `cyclic`/`cyclic_find` (measure, don't guess).\n2. Redirect execution to `win`:\n```python\npayload = b'A'*offset + p64(elf.symbols['win'])\n```\n3. **Stack alignment gotcha**: if `win` calls `system` and you crash inside on a `movaps`, prepend a bare `ret` gadget to 16-byte-align:\n```python\npayload = b'A'*offset + p64(ret_gadget) + p64(elf.symbols['win'])\n```\nVerify a shell/flag locally, then run remote. If `win` takes an argument, use a `pop rdi; ret` to set it first.",
+    ["Pwn", "StackOverflow", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "I have a stack overflow but almost no useful gadgets and no libc leak. How do I still get a syscall?",
+    "Static-ish binary, NX on, very few ROP gadgets, but a `syscall` instruction exists and I control a large buffer.",
+    "Reach for **SROP (sigreturn-oriented programming)** — one `syscall` + control of RAX=15 lets you restore *every* register from a fake sigcontext frame on the stack, so you set up an `execve(/bin/sh,0,0)` in one shot.\n\n```python\nframe = SigreturnFrame()\nframe.rax = constants.SYS_execve\nframe.rdi = binsh_addr        # a /bin/sh you planted or found\nframe.rsi = 0\nframe.rdx = 0\nframe.rip = syscall_addr\npayload = b'A'*offset + p64(pop_rax_15) + p64(syscall_addr) + bytes(frame)\n```\nYou need: a way to set RAX=15 (a `pop rax; ret`, or an `alarm()`/`read()` return trick), a `syscall` gadget, and a known address for the `/bin/sh` string (write it via a `read` into .bss if none exists). Confirm the frame offsets in gdb before firing.",
+    ["Pwn", "ROP", "Shellcode"],
+    "pwn_stack",
+)
+_add(
+    "No libc leak, no useful strings, NX on, Partial RELRO. Overflow with a known offset. Can I get a shell without leaking libc?",
+    "Dynamically linked, but I have no info leak primitive and can't call puts/printf to leak.",
+    "Use **ret2dlresolve** — abuse the dynamic linker to resolve `system` (or `execve`) for you, so you never need a libc leak. pwntools automates the fake structures:\n\n```python\ndlresolve = Ret2dlresolvePayload(elf, symbol='system', args=['/bin/sh'])\nrop = ROP(elf)\nrop.read(0, dlresolve.data_addr)          # stage the fake _dl structures into .bss/.data\nrop.ret2dlresolve(dlresolve)\npayload = b'A'*offset + rop.chain()\np.sendline(payload); p.sendline(dlresolve.payload)\n```\nRequires writable, known .bss/.data (No PIE or a binary-base leak) and a way to write the fake `Elf64_Sym`/`Elf64_Rel` there (a `read` gadget). It sidesteps ASLR entirely because you only use the binary's own PLT0 resolver path. Verify the resolver actually calls system in gdb.",
+    ["Pwn", "ROP", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "My ROP needs to set RDX (and RSI) but I only have a `pop rdi; ret`. How do I control the other argument registers?",
+    "x86-64, need rdi/rsi/rdx set for a call, missing gadgets for rsi/rdx.",
+    "Use **ret2csu** — the compiler-emitted `__libc_csu_init` contains a universal gadget that pops rbx/rbp/r12/r13/r14/r15 and then `mov rdx,r15; mov rsi,r14; mov edi,r13d; call [r12+rbx*8]`. That gives you rsi/rdx (and a call) from one gadget present in almost every non-stripped dynamically linked binary.\n\nSequence:\n1. `pop rbx..r15; ret` (the second csu gadget) → set rbx=0, rbp=1, r12=ptr-to-func-to-call, r13=rdi, r14=rsi, r15=rdx.\n2. Fall into the `mov rdx,r15; mov rsi,r14; mov edi,r13d; call [r12+rbx*8]` block.\n3. Note `edi` (32-bit) — fine for small ints; for a full 64-bit rdi combine with `pop rdi`.\nSet r12 to a GOT slot pointing at the function you want called. Dump `__libc_csu_init` in gdb to confirm the exact gadget offsets for this binary (they vary).",
+    ["Pwn", "ROP", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "The overflow is short — only enough to overwrite RIP + a couple of qwords. Not enough room for a ROP chain. Options?",
+    "Off-by-few overflow; can control saved RBP and RIP plus ~16 bytes.",
+    "**Pivot the stack** to a larger area you control, then run the full chain there. Two common pivots:\n\n1. **`leave; ret` pivot**: if you control saved RBP, set it to `target-8` and return into a `leave; ret`; the next `leave` sets RSP=RBP → your controlled buffer becomes the stack.\n2. **`pop rsp` / `xchg` gadget**: return into a gadget that loads RSP from a register/memory you set.\n\nStage the real ROP chain earlier via a `read`/input into a known writable buffer (.bss if No PIE), pivot RSP there, and continue. Confirm in gdb that after the pivot RSP points at the first qword of your staged chain. This is the standard fix when the linear overflow is too small.",
+    ["Pwn", "ROP", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "Stack canary is enabled. How do I still exploit the overflow?",
+    "64-bit, canary present, NX on. There is a separate info-leak (a format string or an over-read) available.",
+    "You must **leak the canary and replay it** — overwriting it with garbage triggers `__stack_chk_fail` and aborts. Steps:\n\n1. Leak the canary value via the separate primitive (format string `%N$p` at the canary's stack slot, or an over-read that prints past the buffer). The canary is 8 bytes, little-endian, and always ends in a `00` byte.\n2. Rebuild the overflow preserving it in place:\n```python\npayload  = b'A'*canary_offset\npayload += p64(canary)          # exact leaked value\npayload += b'B'*8               # saved rbp\npayload += rop_chain            # saved rip onward\n```\n3. If it's a forking server that keeps the same canary per connection, you can also **byte-by-byte brute force** it (256 tries/byte) — but a leak is cleaner.\nVerify the leaked value is stable (re-leak once) before committing.",
+    ["Pwn", "StackOverflow", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "PIE is enabled so the binary base is randomized. I have an overflow and one leak. What do I do with the leak?",
+    "Full RELRO, PIE, NX, canary. A leak prints a return address into the binary.",
+    "A single leaked binary address lets you **rebase the whole binary**; subtract the known static offset of that return site:\n```python\nbin_base = leak - 0x1234        # 0x1234 = static offset of the leaked ret in the un-PIE'd ELF\nelf.address = bin_base\n```\nNow every `elf.symbols[...]`, gadget, and PLT/GOT address is correct. With Full RELRO the GOT is read-only, so plan a ROP/ret2libc path rather than GOT overwrite. If you also need libc, chain a `puts(puts@got)` leak using the now-known binary gadgets, then rebase libc. Verify `bin_base` looks page-aligned (ends in `000`) — if not, your static offset is wrong.",
+    ["Pwn", "StackOverflow", "ROP"],
+    "pwn_stack",
+)
+_add(
+    "I have a libc leak and want a one-shot shell instead of building a full execve chain. When can I use one_gadget?",
+    "libc known/rebased, control of RIP, want minimal chain.",
+    "`one_gadget` finds single libc addresses that call `execve(/bin/sh,...)` — but each has **constraints** (specific registers must be NULL or point to NULL at call time). Use it only when you can satisfy one:\n```bash\none_gadget ./libc.so.6\n# e.g. 0xe3afe execve(/bin/sh, rsp+0x50, ...)  constraints: rsp & 0xf == 0, rbp-0x50 writable...\n```\nPick a gadget whose constraint matches your state; if `[rsp+0x50]==NULL` isn't satisfied, either massage the stack or fall back to a `pop rdi; ret` → `system(/bin/sh)`. Constraints are the whole game — verify them in gdb at the moment of the jump. When none are satisfiable, a two-gadget `system` chain is more reliable.",
+    ["Pwn", "Shellcode", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "NX is disabled on this binary. Can I just run shellcode, and how do I jump to it under ASLR?",
+    "No NX (stack executable), overflow present, ASLR on so stack address unknown.",
+    "Yes — with NX off you can execute stack shellcode, but you still need to *reach* it under ASLR. Options:\n1. **`jmp rsp` / `call rsp` gadget**: if one exists in a fixed (No PIE) region, return to it and place shellcode right after — no stack-address leak needed.\n2. **Leak a stack address** (format string / over-read), compute where your shellcode sits, return there.\n3. **Register pivot**: if a register already points into your buffer at crash time (common with `read`), find a `jmp reg` gadget.\n\n```python\nsc = asm(shellcraft.amd64.linux.sh())\npayload = sc.ljust(offset, b'\\x90') + p64(jmp_rsp) + asm(shellcraft.amd64.linux.sh())\n```\nUse a short relative `jmp` or NOP sled to absorb small offset error. Verify RIP lands in the sled in gdb.",
+    ["Pwn", "Shellcode", "ExploitDev"],
+    "pwn_stack",
+)
+_add(
+    "I got a shell primitive but execve is blocked by seccomp. The flag is a file on disk. Now what?",
+    "seccomp filter blocks execve/execveat but allows open/read/write (or openat). Flag at ./flag.",
+    "Drop the shell idea and use **ORW shellcode / ROP**: open the flag, read it into a buffer, write it to stdout — all with allowed syscalls.\n```python\nshellcode = shellcraft.amd64.linux.open('./flag')\nshellcode += shellcraft.amd64.linux.read('rax', 'rsp', 100)\nshellcode += shellcraft.amd64.linux.write(1, 'rsp', 100)\n```\nFirst **dump the seccomp policy** to know what's allowed:\n```bash\nseccomp-tools dump ./chall\n```\nIf `open` is blocked but `openat` isn't, use `openat(AT_FDCWD, ...)`. If it's a ROP (not shellcode) context, build the same open/read/write as a chain. Success = the flag bytes appear on stdout — verify locally against a dummy flag file.",
+    ["Pwn", "Shellcode", "ExploitDev"],
+    "pwn_workflow",
+)
+
+# --- format string variants ---------------------------------------------------
+_add(
+    "Format string bug but the write happens once and I need both a libc leak and a canary. What order and payload?",
+    "Single printf(user) per run, forking server (state persists across connections is not guaranteed).",
+    "Leak everything you need in the **same** printf if it only fires once, using positional specifiers so one line yields multiple values:\n```\n%6$p.%N$p.%M$p    # e.g. arg6 = canary (ends 00), argN = libc ret, argM = PIE ret\n```\n1. Map each position first with a `%p %p %p ...` scan and identify which is the canary (8 hex, trailing `00`), which is a libc address (matches `__libc_start_main` region), which is a PIE/stack address.\n2. Rebase libc and the binary from those leaks.\n3. If you also get one `%n` write, target a saved return with `fmtstr_payload` on a *second* input if the program loops; if it truly runs once, prefer converting the read into a GOT-overwrite of a function called after the printf.\nVerify each classified leak (re-run) before trusting the rebased bases.",
+    ["Pwn", "FormatString", "ExploitDev"],
+    "pwn_format",
+)
+
+# --- heap variants ------------------------------------------------------------
+_add(
+    "Older glibc (2.27) heap challenge with a double-free. Simplest path to control?",
+    "glibc 2.27 (tcache present, no double-free key yet), menu allocator with UAF/double-free.",
+    "On 2.27 tcache has **no double-free protection and no safe-linking**, so tcache dup is trivial:\n1. Free a chunk twice → it's in the tcache list twice.\n2. Malloc it back and overwrite its `fd` with the target address (raw, no mangling on 2.27).\n3. Two more mallocs: the second returns a chunk at `target`.\n4. Target `__free_hook`, write `system`, then free a chunk whose data is `/bin/sh` → `system(/bin/sh)`.\n```python\nfree(a); free(a)                 # double free into tcache\nalloc(idx, p64(__free_hook))     # poison fd\nalloc(); alloc(idx2, p64(system)) # second alloc lands on __free_hook\nalloc(sh, b'/bin/sh\\x00'); free(sh)\n```\nGet a libc leak first (unsorted-bin address via `show` on a freed large chunk) to know `__free_hook`/`system`. Confirm in gdb (`bins`) the poisoned chunk is where you expect.",
+    ["Pwn", "HeapExploitation", "UAF"],
+    "pwn_heap",
+)
+_add(
+    "How do I get a libc leak from a heap-only challenge with no printf of libc addresses?",
+    "menu allocator with malloc/free/show; no obvious libc output.",
+    "Use the **unsorted bin**: a freed chunk too big for tcache/fastbins goes to the unsorted bin, and its `fd`/`bk` point into libc's `main_arena` (inside libc). If you can `show` that freed chunk, you leak a libc address.\n1. Allocate a chunk larger than the tcache max (> 0x408), and a guard chunk after it (so it doesn't merge with top).\n2. Free the large chunk → it enters the unsorted bin, `fd`/`bk` = `main_arena+96`-ish.\n3. `show` it → read the pointer → `libc.address = leak - <main_arena offset to libc base>` (compute the exact offset for the provided libc, e.g. via `libc.sym['main_arena']` or a known constant).\nVerify the leaked value looks like a libc pointer (high, page-aligned-ish) before rebasing.",
+    ["Pwn", "HeapExploitation", "ExploitDev"],
+    "pwn_heap",
+)
+_add(
+    "Heap off-by-one null byte overflow (poison null byte). How does that lead to overlap?",
+    "A single NUL byte can be written one past a heap chunk's data (off-by-one into the next chunk's size low byte).",
+    "The NUL clears the low byte of the next chunk's `size`, which you use to **shrink/expand and create overlapping chunks** (poison-null-byte / off-by-one consolidation):\n1. Groom three chunks A,B,C. The off-by-one on A clears B's size low byte or its `PREV_INUSE` bit so a later `free` mis-consolidates.\n2. Craft a fake `prev_size` so freeing C backward-consolidates over B, producing a large free chunk overlapping B.\n3. Reallocate the large chunk → you now control B's metadata/contents while B is still 'in use' elsewhere → UAF/overlap primitive.\n4. From the overlap, leak (unsorted bin) and then tcache-poison to a target.\nThis is fiddly — verify chunk layout in gdb (`vis`) at each free; alignment and `prev_size` must be exact.",
+    ["Pwn", "HeapExploitation", "ExploitDev"],
+    "pwn_heap",
+)
+_add(
+    "glibc 2.35 — hooks are removed. I have arbitrary write via tcache. Where do I aim if __free_hook/__malloc_hook are gone?",
+    "glibc 2.34+ removed __free_hook/__malloc_hook/__realloc_hook. Arbitrary alloc/write achieved.",
+    "Pivot to **FILE-stream (FSOP) targets** or a stack return; hooks are gone on 2.34+.\n\nBest options:\n1. **House of Apple 2** (`_IO_2_1_stdout_`/stderr): overwrite the `_IO_FILE` vtable path (`_wide_data`/`_IO_wfile_jumps`) so the next `puts`/`printf`/exit flush triggers your controlled call — the standard 2.35 shell path.\n2. **`_IO_list_all` / exit handlers**: overwrite `__exit_funcs` (obfuscated via `PTR_MANGLE`, so you need the mangle key or a partial) to run code at `exit`.\n3. **`environ` → stack**: leak the stack via `environ` (in libc), then arbitrary-write a saved return address to a ROP chain.\n\nOn 2.35 FSOP requires getting the `_IO_FILE` fields right (`_flags`, `_lock`, vtable check bypass). Verify by stepping the flush in gdb. Don't target `__free_hook` — it no longer exists.",
+    ["Pwn", "HeapExploitation", "ExploitDev"],
+    "pwn_heap",
+)
+_add(
+    "What's a large bin attack good for, and when do I need it?",
+    "glibc heap, I can control a freed large chunk's metadata; I want an arbitrary write of a large value.",
+    "A **large bin attack** gives you a single write of a heap/large value to a chosen address — useful to overwrite a global (e.g. `global_max_fast` to enable a fastbin-into-arbitrary, or a target pointer used later) when you can't yet get a clean tcache alloc.\n\nMechanism (post-2.30 variant): by corrupting a large-bin chunk's `bk_nextsize` (or `bk`) before it's inserted, glibc's insertion code writes the chunk's address into `target = &fake - offset`. You don't fully control the *value* (it's a heap address), so it's best for setting a pointer/flag, not writing arbitrary data.\nTypical use: set `global_max_fast` huge → then fastbin chunks accept large sizes → fastbin-dup into `__malloc_hook`-style targets on older libc, or corrupt an application pointer. Verify the exact glibc version's insertion code path in gdb before relying on it.",
+    ["Pwn", "HeapExploitation", "ExploitDev"],
+    "pwn_heap",
+)
+
+# --- V8 variants --------------------------------------------------------------
+_add(
+    "V8 task where the bug gives a wrong (too-large) array length. How do I convert a length-confusion into arbitrary R/W?",
+    "A JSArray reports/uses an OOB length due to the injected bug; pointer compression on.",
+    "Length confusion → OOB on the backing store → build the two primitives → arbitrary R/W via a fake TypedArray:\n1. Place a `Float64Array`/`JSArray` (float elements) next to a target object; the OOB length lets you read/write beyond the real backing store.\n2. **addrof**: store a target object in a neighboring property/element and read its compressed pointer through the OOB float array.\n3. **fakeobj**: write a controlled compressed pointer through the OOB region so V8 interprets attacker bytes as an object.\n4. Craft a fake `ArrayBuffer`/`TypedArray` (via fakeobj) whose backing-store pointer you set; its elements are now arbitrary memory. With **pointer compression**, in-heap refs are 32-bit within the cage — full 64-bit access is via the (uncompressed) backing-store pointer.\nVerify: `%DebugPrint(obj)` (if `--allow-natives-syntax`) or confirm addrof returns a heap-looking value and a known read matches before proceeding.",
+    ["Pwn", "V8", "TypeConfusion"],
+    "pwn_v8",
+)
+_add(
+    "I have arbitrary read/write in d8. How do I actually execute code given modern V8 mitigations?",
+    "Arbitrary R/W primitive achieved; V8 build may have the code-pointer sandbox / W^X.",
+    "Classic path: overwrite a **WASM instance's RWX code page** and jump in.\n1. Instantiate a small WASM module → V8 allocates a RWX (or RW→RX) page for its jitted code and stores a pointer to it in the `WasmInstanceObject`.\n2. Use arbitrary read to find that code-entry pointer, arbitrary write to replace the code bytes with your shellcode, then call the exported WASM function → shellcode runs.\n\nIf the build enforces **W^X / code-pointer sandboxing** (newer V8), the RWX-WASM trick is dead — pivot to: overwriting a JIT-compiled function's entry within allowed regions, a data-only attack (corrupt objects to leak the flag directly), or an `ArrayBuffer`-backing-store-into-executable technique specific to the build. Confirm what mitigations the benchmark's d8 was compiled with before choosing; verify each step (the code page address is valid) in gdb.",
+    ["Pwn", "V8", "Shellcode"],
+    "pwn_v8",
+)
+
+# --- kernel variants ----------------------------------------------------------
+_add(
+    "Kernel UAF on an object I can reallocate. How do I turn it into root via cred overwrite?",
+    "Freeable kernel object with a UAF; heap spray possible; KASLR on, goal root.",
+    "Two data-only routes; **cred overwrite** is the most direct for root:\n1. Leak a kernel pointer to defeat KASLR (an infoleak in the same object, `dmesg`, or a known kernelctf-profile offset), rebase `_text`.\n2. **Reclaim** the freed object with a controllable structure (heap spray with `msg_msg`, `setxattr`, `sk_buff`, or `user_key_payload` of the same kmalloc size) so you control its contents.\n3. Either:\n   - **Function-pointer hijack**: if the UAF object has an ops/callback pointer, point it at a stack pivot → kROP calling `commit_creds(prepare_kernel_cred(0))`; or\n   - **Direct cred write**: locate `current->cred` and zero `uid/gid/euid/egid/...` (a full root cred is all zeros in those fields).\n4. Return to userland (KPTI trampoline `swapgs_restore_regs_and_return_to_usermode`) and `system(/bin/sh)` / read the flag.\nSMEP/SMAP don't block the data-only cred write. Verify `id` shows uid=0 before declaring success.",
+    ["Pwn", "KernelExploit", "LPE"],
+    "pwn_kernel",
+)
+_add(
+    "Explain how to use Dirty Pipe (CVE-2022-0847) if the task kernel is vulnerable.",
+    "kernelctf-style target on a kernel in the Dirty Pipe vulnerable range (5.8 – ~5.16.11).",
+    "Dirty Pipe lets you **write to files you can only read**, by exploiting uninitialized `pipe_buffer.flags` retaining `PIPE_BUF_FLAG_CAN_MERGE` so a splice-then-write lands page-cache data into a read-only file's cached page.\n1. Open a target read-only file (e.g. `/etc/passwd`) that you can read.\n2. Create a pipe, fill+drain it so a buffer keeps the mergeable flag, then `splice()` one byte from the file into the pipe at the offset before your target.\n3. `write()` your bytes to the pipe → they overwrite the file's page cache (not the offset-0 byte of a page, and within one page).\nRoot paths: rewrite `/etc/passwd` to set root's password hash to a known value (then `su`), or overwrite a root-owned SUID binary's bytes. Verify the file content changed and `su`/exec yields uid=0. This is a known-CVE data-only technique — no KASLR/SMEP concerns.",
+    ["Pwn", "KernelExploit", "LPE"],
+    "pwn_kernel",
+)
+_add(
+    "How do I win a tight kernel race (double-fetch / UAF race) reliably in the benchmark VM?",
+    "The bug only triggers in a small timing window between two operations.",
+    "Widen the window and increase attempts:\n1. **userfaultfd** or **FUSE**: back the attacker page with userfaultfd/FUSE so a kernel copy_from_user faults into *your* handler, freezing the kernel mid-operation exactly at the race point — turns a nanosecond window into an arbitrarily long one. (If `unprivileged_userfaultfd`=0, use FUSE.)\n2. **CPU pinning + spinner threads**: pin the racing threads to separate cores (`sched_setaffinity`), spam the op in a loop.\n3. **Heap spray timing**: pre-spray reclaim objects so the freed slot is grabbed by your controlled object the instant it's freed.\nMeasure success probability across N runs; a reliable exploit re-arms and retries rather than assuming one-shot. Verify the win condition (a controlled object landed in the freed slot) with a marker before proceeding to the cred/modprobe stage.",
+    ["Pwn", "KernelExploit", "ExploitDev"],
+    "pwn_kernel",
+)
+_add(
+    "Kernel exploit: where do I get a KASLR leak, and why prefer data-only over ret2usr?",
+    "Modern kernel: KASLR, SMEP, SMAP, KPTI all on.",
+    "**Leak sources** (need one to rebase `_text`/kernel base): an infoleak in the target driver (uninitialized struct copied to userland), a freed-pointer read via the UAF, `msg_msg`/`sk_buff` residual data, or side channels (prefetch/EntryBleed) when no direct leak exists. Rebase: `kbase = leak - known_static_offset`.\n\n**Why data-only** (cred overwrite / `modprobe_path` / FSOP-style) beats **ret2usr/kROP**: SMEP blocks executing userland pages in kernel mode, SMAP blocks the kernel dereferencing userland data, and KPTI complicates the return path. Data-only writes stay entirely within kernel memory, so SMEP/SMAP never trigger and you avoid building a KPTI-safe trampoline. Only fall back to kROP (with the KPTI trampoline `swapgs_restore_regs_and_return_to_usermode`) when you truly need code execution, not just root creds. Verify the leak rebases to a page-aligned kbase before trusting it.",
+    ["Pwn", "KernelExploit", "LPE"],
+    "pwn_kernel",
+)
+
+# --- triage / workflow --------------------------------------------------------
+_add(
+    "How do I choose a heap technique from the glibc version alone?",
+    "I know the target's glibc version and have a UAF/overflow; want to pick the path quickly.",
+    "Let the version gate the technique (each mitigation landed at a known release):\n- **<= 2.28**: tcache has no key and no safe-linking → tcache dup / double-free is trivial; `__free_hook`/`__malloc_hook` exist.\n- **2.29–2.31**: tcache double-free **key** added (2.29) → use UAF-fd-overwrite, not raw double-free; hooks still exist (great targets) through 2.33.\n- **2.32–2.33**: **safe-linking** (2.32) → must mangle `fd` with `addr>>12`; hooks still present.\n- **2.34+**: `__free_hook`/`__malloc_hook`/`__realloc_hook` **removed** → pivot to FSOP (house of apple), `__exit_funcs`, or `environ`→stack ROP.\n- **2.35+**: same as 2.34 plus tighter `_IO` checks → house of apple 2 is the workhorse.\nConfirm the exact version (`strings libc.so.6 | grep 'GNU C'`) and verify the chosen primitive in gdb before committing.",
+    ["Pwn", "HeapExploitation", "Methodology"],
+    "pwn_triage",
+)
+_add(
+    "Remote forking service, canary enabled, and I have a partial-overflow oracle (crash vs no-crash). No leak. Can I still exploit?",
+    "`fork()` server so the child keeps the parent's canary/addresses across connections; overflow lets me overwrite one byte at a time.",
+    "Yes — **byte-by-byte brute force** works precisely because a forking server re-uses the same canary and ASLR base in every child:\n1. Overwrite the canary one byte at a time; for each position try 0x00–0xff and keep the byte that does **not** crash (that byte matched). 8 bytes × 256 = ~2048 tries worst case for the canary.\n2. Repeat the same oracle for the saved return / PIE base bytes you need.\n```python\nfound = b''\nfor pos in range(8):\n    for b in range(256):\n        if not crashes(found + bytes([b])):\n            found += bytes([b]); break\n```\nThis only works with the fork-same-state property — verify a wrong byte reliably crashes and a right byte doesn't before trusting the oracle. Then send the full payload with the recovered canary in place.",
+    ["Pwn", "StackOverflow", "ExploitDev"],
+    "pwn_workflow",
+)
+_add(
+    "Given this gdb crash state, what's my next concrete step?",
+    "```\nProgram received signal SIGSEGV.\nRIP  0x4141414141414141\nRSP  0x7fffffffe0a8 --> 0x4242424242424242\n```",
+    "RIP is fully controlled (`0x4141...`) — you already have arbitrary control of execution, so stop fuzzing and start building the chain.\n1. **Confirm the exact offset**: the `A`s reached RIP, and `B`s are at RSP — so your ROP chain goes right where the `B`s are. Use `cyclic_find` on the pattern to pin the offset to RIP precisely.\n2. **Check mitigations** (`checksec`) to pick the path: No PIE + libc → ret2libc with a leak; win() present → ret2win; NX off → shellcode.\n3. Because RSP points at your controlled data, a plain ROP chain placed after the saved RIP will execute directly — no pivot needed.\nNext action: replace the `A*offset` with the real chain and put stage-1 (leak) qwords where the `B`s are. Verify RIP hits your first gadget in gdb.",
+    ["Pwn", "BinaryExploitation", "Methodology"],
+    "pwn_triage",
+)
+_add(
+    "The exploit works locally but fails on the remote target. How do I debug the gap without guessing?",
+    "Local shell reliable; remote returns nothing or crashes. Same binary + provided libc.",
+    "Local↔remote gaps come from a few concrete causes — check them in order, don't randomly tweak:\n1. **Wrong libc**: the remote may use a different libc than your local system. Use the *provided* libc for offsets (`LD_PRELOAD` it locally, or pwninit/patchelf the binary) so local matches remote. A wrong libc base is the #1 cause.\n2. **Environment/stack layout differences**: absolute stack addresses differ; rely on leaks + relative offsets, never a locally-observed stack address.\n3. **Buffering/newlines**: remote may need explicit `\\n`, or `recvuntil` on a different prompt; print what you actually receive.\n4. **ASLR entropy**: a partial-overwrite trick that worked with ASLR off locally may need a real leak remotely.\nAdd `context.log_level='debug'`, compare the received bytes at each stage local vs remote, and fix the first stage that diverges. Success is still defined as the flag returning.",
+    ["Pwn", "ExploitDev", "Methodology"],
+    "pwn_workflow",
 )
 
 
