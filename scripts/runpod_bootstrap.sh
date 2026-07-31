@@ -8,32 +8,34 @@
 #   HF_DATASET_REPO         If set, pull curated dataset from this HF dataset repo
 #                           (skips local data collection on the pod).
 #   HUNTER_BASE_MODEL       Base model to fine-tune. Recommended:
-#                             - meta-llama/Meta-Llama-3-8B-Instruct   (A6000-48GB, ~1h)
-#                             - Qwen/Qwen2.5-32B-Instruct             (A100-80GB,  ~4h)
-#                             - Qwen/Qwen2.5-72B-Instruct             (A100-80GB or H100-80GB, ~6-10h)
-#                           Defaults to Qwen/Qwen2.5-72B-Instruct.
+#                             - Qwen/Qwen2.5-7B-Instruct    (ungated; A100-80GB ~2-4h)  [DEFAULT]
+#                             - meta-llama/Llama-3.1-8B-Instruct  (gated; RTX 4090-24GB works for SFT)
+#                             - Qwen/Qwen2.5-32B-Instruct   (A100-80GB, ~5-8h)
+#                             - Qwen/Qwen2.5-72B-Instruct   (A100/H100-80GB, ~8-12h)
+#                           Defaults to Qwen/Qwen2.5-7B-Instruct (ungated, code+reasoning strong).
 #   SFT_EPOCHS              Defaults to 1
 #   DPO_EPOCHS              Defaults to 0.5
-#   SKIP_DPO=1              Skip the DPO stage entirely (recommended for v3 -- the
-#                           SFT dataset is already prescriptive, DPO adds little).
+#   SKIP_DPO=1              Skip the DPO stage. DPO is where judgment/false-positive
+#                           discipline is taught (curated preference pairs) -- run it
+#                           unless you're doing a fast SFT-only smoke test.
 #   SKIP_MERGE=1            Skip the merge stage (push adapter only -- much faster
 #                           upload for 72B; user merges locally / on inference host).
 #   GRAD_ACCUM              Grad accumulation steps (default scales with model size).
 #   MAX_SEQ_LEN             Override max sequence length (defaults to 4096).
 #   WANDB_API_KEY           Optional: enables Weights & Biases dashboards
 #
-# Pod sizing guide:
-#   8B  + QLoRA 4-bit : A6000 48GB    (~$0.50/h)   ~1h     -> ~$1
-#   32B + QLoRA 4-bit : A100 80GB     (~$2.00/h)   ~4h     -> ~$8
-#   72B + QLoRA 4-bit : A100 80GB     (~$2.00/h)   ~6-10h  -> ~$15-20
-#   72B + QLoRA 4-bit : H100 80GB     (~$3.50/h)   ~3-5h   -> ~$15-20  (faster, similar $)
+# Pod sizing guide (SFT ~9.9k rows, 1 epoch; DPO adds roughly 2-3x SFT time):
+#   7-8B + QLoRA 4-bit : RTX 4090 24GB (~$0.50/h) SFT ~2-3h        -> ~$2  (SFT only)
+#   7-8B + QLoRA 4-bit : A100 80GB     (~$1.70/h) SFT+DPO ~5-8h    -> ~$10-15  [recommended]
+#   32B  + QLoRA 4-bit : A100 80GB     (~$1.70/h) SFT+DPO ~8-12h   -> ~$15-25
+#   72B  + QLoRA 4-bit : H100 80GB     (~$3.50/h) SFT+DPO ~8-12h   -> ~$30-45
 #
-# Usage on a fresh pod:
+# Usage on a fresh pod (builds the rebalanced v3 dataset locally):
 #   git clone https://github.com/jabir-khan/HunterLLM.git && cd HunterLLM
-#   export HF_TOKEN=hf_xxx HF_MODEL_REPO=jabir-khan/HunterLLM-72B-v3
-#   export HF_DATASET_REPO=jabir-khan/hunter-llm-sft-v3-private   # set to v3
-#   export SKIP_DPO=1                                              # recommended for v3
+#   export HF_TOKEN=hf_xxx HF_MODEL_REPO=jabir-khan/HunterLLM-7B-v3
 #   bash scripts/runpod_bootstrap.sh
+# Faster, cheaper first pass (SFT only, no DPO):
+#   export SKIP_DPO=1 && bash scripts/runpod_bootstrap.sh
 
 set -euo pipefail
 
@@ -47,10 +49,13 @@ fi
 
 : "${HF_TOKEN:?Set HF_TOKEN (Hugging Face write token)}"
 : "${HF_MODEL_REPO:?Set HF_MODEL_REPO (e.g. jabir-khan/HunterLLM-72B-v3)}"
-HUNTER_BASE_MODEL="${HUNTER_BASE_MODEL:-Qwen/Qwen2.5-72B-Instruct}"
+HUNTER_BASE_MODEL="${HUNTER_BASE_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
 SFT_EPOCHS="${SFT_EPOCHS:-1}"
 DPO_EPOCHS="${DPO_EPOCHS:-0.5}"
 MAX_SEQ_LEN="${MAX_SEQ_LEN:-4096}"
+# The rebalanced v3 SFT set is the result-oriented one (caps reference prose,
+# upweights reasoning/tool/report/AI-security buckets). Train on it, not v2.
+SFT_DATASET="${SFT_DATASET:-data/processed/sft_train_v3.jsonl}"
 
 # Auto-scale grad accumulation by model size unless user overrode it.
 if [[ -z "${GRAD_ACCUM:-}" ]]; then
@@ -90,28 +95,31 @@ fi
 
 echo "==[4/7] Prepare dataset"
 if [[ -n "${HF_DATASET_REPO:-}" ]]; then
-  echo "    Pulling dataset from HF: $HF_DATASET_REPO"
-  # Files are uploaded at the dataset root (sft_train.jsonl, dpo_pairs.jsonl);
-  # the trainers read from data/processed/, so pull straight into that folder.
+  echo "    Pulling prebuilt dataset from HF: $HF_DATASET_REPO"
+  # Expect sft_train_v3.jsonl + dpo_pairs.jsonl at the dataset root.
   mkdir -p data/processed
   python -m hunter_llm.infer.hf_pull --repo "$HF_DATASET_REPO" --out data/processed --repo-type dataset
 else
-  echo "    No HF_DATASET_REPO set — building dataset on the pod (will clone repos + fetch NVD)"
+  echo "    No HF_DATASET_REPO set — collecting sources + building the REBALANCED v3 dataset on the pod"
+  # 1) collect raw sources (GitHub repos + NVD + KEV + ATT&CK) and write v2 buckets.
   python -m hunter_llm.cli bootstrap-data --skip-trickest --full
+  # 2) build the result-oriented v3 SFT set (rebalance is ON by default) + DPO pairs.
+  python -m hunter_llm.cli build-dataset-v3
+  python -m hunter_llm.cli export-dpo
 fi
 
 ls -la data/processed/ || true
-# Sanity check: training step will fail with a confusing FileNotFoundError if the
-# Xet backend silently downloaded 0-byte pointer files. Bail early instead.
-if [[ ! -s data/processed/sft_train.jsonl ]]; then
-  echo "ERROR: data/processed/sft_train.jsonl missing or empty after dataset pull."
-  echo "       Hint: pip install -U 'huggingface_hub[hf_xet]' hf_xet"
+# Sanity check: training fails with a confusing FileNotFoundError if the Xet backend
+# silently downloaded 0-byte pointer files, or the v3 build was skipped. Bail early.
+if [[ ! -s "$SFT_DATASET" ]]; then
+  echo "ERROR: $SFT_DATASET missing or empty."
+  echo "       Local build? ensure 'build-dataset-v3' ran. HF pull? pip install -U 'huggingface_hub[hf_xet]' hf_xet"
   exit 1
 fi
 
-echo "==[5/7] SFT QLoRA  (base=$HUNTER_BASE_MODEL  grad_accum=$GRAD_ACCUM  max_seq=$MAX_SEQ_LEN)"
+echo "==[5/7] SFT QLoRA  (base=$HUNTER_BASE_MODEL  data=$SFT_DATASET  grad_accum=$GRAD_ACCUM  max_seq=$MAX_SEQ_LEN)"
 python -m hunter_llm.train.sft_qlora \
-  --dataset-jsonl data/processed/sft_train.jsonl \
+  --dataset-jsonl "$SFT_DATASET" \
   --output-dir outputs/hunter-lora \
   --model-name "$HUNTER_BASE_MODEL" \
   --epochs "$SFT_EPOCHS" \
