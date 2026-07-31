@@ -331,6 +331,67 @@ DEFAULT_REPOS: list[dict] = [
         "license": "MIT",
         "paths": None,
     },
+    # === AI / LLM security — testing models & agents (OWASP-LLM, ATLAS, tooling) ===
+    {
+        "owner": "OWASP",
+        "repo": "www-project-top-10-for-large-language-model-applications",
+        "license": "CC-BY-SA-4.0",
+        "paths": None,
+    },
+    {
+        "owner": "OWASP",
+        "repo": "www-project-machine-learning-security-top-10",
+        "license": "CC-BY-SA-4.0",
+        "paths": None,
+    },
+    {
+        "owner": "mitre-atlas",
+        "repo": "atlas-data",
+        "license": "Apache-2.0",
+        "paths": ["data", "README.md"],
+    },
+    {
+        "owner": "NVIDIA",
+        "repo": "garak",
+        "license": "Apache-2.0",
+        "paths": ["README.md", "docs"],
+    },
+    {
+        "owner": "promptfoo",
+        "repo": "promptfoo",
+        "license": "MIT",
+        "paths": ["README.md", "site/docs/red-team"],
+    },
+    {
+        "owner": "Azure",
+        "repo": "PyRIT",
+        "license": "MIT",
+        "paths": ["README.md", "doc"],
+    },
+    {
+        "owner": "protectai",
+        "repo": "llm-guard",
+        "license": "MIT",
+        "paths": ["README.md", "docs"],
+    },
+    {
+        "owner": "Trusted-AI",
+        "repo": "adversarial-robustness-toolbox",
+        "license": "MIT",
+        "paths": ["README.md"],
+    },
+    {
+        "owner": "greshake",
+        "repo": "llm-security",
+        "license": "MIT",
+        "paths": None,
+    },
+    {
+        "owner": "corca-ai",
+        "repo": "awesome-llm-security",
+        "license": "MIT",
+        "paths": None,
+    },
 ]
 
 

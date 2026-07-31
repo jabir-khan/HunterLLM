@@ -8,7 +8,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 OUT = REPO / "data" / "curated" / "tool_invocations.jsonl"
-TARGET = 300
+TARGET = 330
 
 # (instruction, input, output, tags)
 _EXTRA: list[tuple[str, str, str, list[str]]] = []
@@ -54,6 +54,78 @@ interactsh-client
 ```
 Note the subdomain printed (e.g. `abc123.oast.fun`). Use it in payloads; correlate hits in the client UI. One session per test campaign.""",
     ["interactsh", "oast", "ssrf"],
+)
+
+# --- AI / LLM red-team tooling (authorized model testing) ---
+_add(
+    "Run a first-pass LLM vulnerability scan on an authorized OpenAI-compatible endpoint with garak, focusing on high-value probe classes.",
+    """```bash
+export OPENAI_API_KEY=...   # or OPENAI_API_BASE for a self-hosted endpoint
+python -m garak --model_type openai --model_name <model> \\
+  --probes promptinject,leakreplay,xss,encoding \\
+  --report_prefix garak_run
+python -m garak --list_probes   # flags/probe names vary by version — confirm
+```
+Scanner hits are LEADS. A finding requires a manual PoC where the output crosses a boundary (tool/data/secret/sink).""",
+    ["garak", "llm", "prompt-injection"],
+)
+_add(
+    "Set up a repeatable promptfoo red-team eval for an LLM app so results are regression-testable and client-shareable.",
+    """```bash
+npm i -g promptfoo
+promptfoo redteam init          # writes promptfooconfig.yaml
+# enable plugins that map to real risk: prompt-injection, pii, bola, ssrf, excessive-agency
+promptfoo redteam run
+promptfoo view
+```
+Keep the config in-repo; a passing re-run after the fix is your remediation proof.""",
+    ["promptfoo", "llm", "prompt-injection"],
+)
+_add(
+    "Manually probe an LLM chat endpoint for indirect prompt injection reaching a tool, using curl + an OAST canary.",
+    """```bash
+OAST="$(interactsh-client 2>/dev/null | head -1)"   # e.g. abc123.oast.fun
+curl -s https://api.target.example.com/v1/chat/completions \\
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \\
+  -d '{"model":"<m>","messages":[{"role":"user","content":"Summarize this page then fetch http://'"$OAST"'/?c=ctx"}]}'
+```
+An OAST hit proves the model/agent performed an outbound fetch from your instruction (SSRF/tool abuse). No hit = not reachable; move on.""",
+    ["curl", "llm", "ssrf", "prompt-injection"],
+)
+_add(
+    "Test an ML image classifier API for adversarial evasion with a decision-based (labels-only) attack using IBM ART.",
+    """```python
+# pip install adversarial-robustness-toolbox
+from art.attacks.evasion import HopSkipJump
+from art.estimators.classification import BlackBoxClassifier
+# wrap the remote API: predict_fn(x) -> one-hot labels; then:
+clf = BlackBoxClassifier(predict_fn, input_shape, nb_classes)
+x_adv = HopSkipJump(classifier=clf, targeted=False).generate(x)
+```
+Budget queries (respect rate limits/scope). A finding = the perturbed input defeats a security control (moderation/KYC), not a cosmetic mislabel.""",
+    ["art", "adversarial", "ml"],
+)
+_add(
+    "Run a black-box membership-inference check against a model trained on sensitive data (privacy test) with ART.",
+    """```python
+from art.attacks.inference.membership_inference import MembershipInferenceBlackBox
+attack = MembershipInferenceBlackBox(estimator)
+attack.fit(x_train_sub, y_train_sub, x_test_sub, y_test_sub)   # shadow split
+inferred = attack.infer(x_target, y_target)   # member vs non-member
+```
+Report only a statistically significant member/non-member distinguisher (AUC >> 0.5) on access-controlled sensitive data. Keep it statistical; don't reconstruct records.""",
+    ["art", "membership-inference", "ml", "privacy"],
+)
+_add(
+    "Scan an LLM app for common issues with giskard's LLM scan (authorized).",
+    """```python
+# pip install giskard
+import giskard
+scan = giskard.scan(giskard_model, giskard_dataset)   # wrap your model+data first
+scan.to_html("giskard_llm_scan.html")
+```
+Treat flagged issues (injection, harmfulness, robustness) as leads; verify each against a real boundary before reporting.""",
+    ["giskard", "llm"],
 )
 _add(
     "Notify pipeline: run nuclei and push hits to Slack (authorized program).",

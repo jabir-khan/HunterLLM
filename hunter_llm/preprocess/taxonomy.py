@@ -52,7 +52,17 @@ _PATTERNS: list[tuple[str, list[str]]] = [
     (r"\bsensitive information disclosure\b.*llm|llm.*data leak|pii in (?:completion|response)", ["LLM", "SensitiveDataDisclosure"]),
     (r"\bhallucinat|llm misinformation|overreliance", ["LLM", "Misinformation"]),
     (r"\bllm supply chain\b|poisoned model|malicious (?:adapter|lora|gguf)|pickle model", ["LLM", "SupplyChain"]),
-    (r"\bagent(?:ic)?\b.*(?:tool|function call)|tool[- ]?calling abuse", ["LLM", "AgentAbuse"]),
+    (r"\bagent(?:ic)?\b.*(?:tool|function call)|tool[- ]?calling abuse|\bmcp\b tool", ["LLM", "AgentAbuse"]),
+    (r"\bmultimodal\b|image[- ]?based prompt|vision prompt injection|prompt in (?:an? )?image", ["LLM", "Multimodal", "PromptInjection"]),
+    # Adversarial ML / model-level attacks (testing the model itself, not just the app)
+    (r"\badversarial example|evasion attack|\bfgsm\b|\bpgd\b|adversarial perturbation|adversarial patch", ["AISecurity", "AdversarialExamples"]),
+    (r"\bmodel extraction|model stealing|steal(?:ing)? the model|surrogate model|model cloning", ["AISecurity", "ModelExtraction"]),
+    (r"\bmembership inference\b|shadow model", ["AISecurity", "MembershipInference"]),
+    (r"\bmodel inversion\b|attribute inference|reconstruct training", ["AISecurity", "ModelInversion"]),
+    (r"\btraining data extraction|memoriz(?:ed|ation)|divergence attack|extractable memorization|verbatim training", ["AISecurity", "TrainingDataExtraction"]),
+    (r"\bbackdoor(?:ed)?\b|neural cleanse|trojan(?:ed)? model|trigger pattern|badnets", ["AISecurity", "ModelBackdoor"]),
+    (r"\bmitre atlas\b|\batlas\b tactic|adversarial (?:threat|ml) matrix", ["AISecurity", "ATLAS"]),
+    (r"\bgarak\b|promptfoo|\bpyrit\b|giskard|llm[- ]?guard|\brebuff\b|adversarial robustness toolbox|\bfoolbox\b|cleverhans", ["LLM", "AITooling"]),
     # Binary / systems exploitation (ExploitGym: userspace, V8, kernel)
     (r"\bbinary exploitation\b|\bpwn\b|memory corruption|checksec", ["Pwn", "BinaryExploitation"]),
     (r"\bbuffer overflow\b|stack overflow|stack smash|ret2win|ret2libc|\brop\b|rop chain|gadget", ["Pwn", "StackOverflow", "ROP"]),
