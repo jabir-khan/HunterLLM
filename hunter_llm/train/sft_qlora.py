@@ -27,8 +27,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--output-dir", type=Path, required=True)
     p.add_argument(
         "--model-name",
-        default=os.environ.get("HUNTER_BASE_MODEL", "meta-llama/Meta-Llama-3-8B-Instruct"),
-        help="HF model id (set HF_TOKEN if gated)",
+        default=os.environ.get("HUNTER_BASE_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
+        help="HF model id (ungated default; set HUNTER_BASE_MODEL to override, HF_TOKEN if gated)",
     )
     p.add_argument("--max-seq-length", type=int, default=4096)
     p.add_argument("--epochs", type=float, default=1.0)

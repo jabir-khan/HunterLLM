@@ -24,8 +24,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--output-dir", type=Path, required=True)
     p.add_argument(
         "--model-name",
-        default=os.environ.get("HUNTER_BASE_MODEL", "meta-llama/Meta-Llama-3-8B-Instruct"),
-        help="HF base model id",
+        default=os.environ.get("HUNTER_BASE_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
+        help="HF base model id (ungated default; set HUNTER_BASE_MODEL to override)",
     )
     p.add_argument("--beta", type=float, default=0.1)
     p.add_argument("--max-prompt-length", type=int, default=2048)

@@ -548,6 +548,12 @@ def build_dataset_v3(
     nuclei_max_per_dir: int = typer.Option(8),
     dedup: bool = typer.Option(True, "--dedup/--no-dedup"),
     dedup_threshold: float = typer.Option(0.94),
+    rebalance: bool = typer.Option(
+        True,
+        "--rebalance/--no-rebalance",
+        help="Cap encyclopedic reference buckets and upweight result/reasoning buckets "
+        "so the model learns to DO, not lecture. Off = raw reference-heavy mix.",
+    ),
 ):
     """v3 SFT dataset — v2 buckets (real source bodies) + v3 prescriptive buckets
     (payloads, wordlists, nuclei probes, tool invocations, personal reports).
@@ -594,12 +600,22 @@ def build_dataset_v3(
     v2_interim.unlink(missing_ok=True)
     v3_interim.unlink(missing_ok=True)
 
+    # Dedup writes to a staging file so the optional rebalance pass can upweight
+    # result buckets *after* near-dups are removed (otherwise repeats get culled).
+    staged = out_path.with_suffix(".deduped_interim.jsonl") if rebalance else out_path
     if dedup:
-        kept, skipped = dedup_rows_jsonl(merged_interim, out_path, threshold=dedup_threshold)
+        kept, skipped = dedup_rows_jsonl(merged_interim, staged, threshold=dedup_threshold)
         merged_interim.unlink(missing_ok=True)
     else:
-        merged_interim.replace(out_path)
-        kept, skipped = sum(v2_counts.get("_total", 0) + v3_counts.get("_total", 0)), 0
+        merged_interim.replace(staged)
+        kept, skipped = v2_counts.get("_total", 0) + v3_counts.get("_total", 0), 0
+
+    mix_counts: dict[str, int] = {}
+    if rebalance:
+        from hunter_llm.preprocess.rebalance import rebalance_jsonl
+
+        mix_counts = rebalance_jsonl(staged, out_path)
+        staged.unlink(missing_ok=True)
 
     table = Table(title="v3 dataset build")
     table.add_column("Bucket")
@@ -611,6 +627,18 @@ def build_dataset_v3(
     table.add_row("after_dedup_kept", str(kept))
     table.add_row("after_dedup_skipped", str(skipped))
     console.print(table)
+
+    if rebalance and mix_counts:
+        mix = Table(title="Rebalanced mix (final SFT rows)")
+        mix.add_column("kind")
+        mix.add_column("rows")
+        for k in sorted(mix_counts):
+            if k == "_total":
+                continue
+            mix.add_row(k, str(mix_counts[k]))
+        mix.add_row("[bold]_total[/bold]", f"[bold]{mix_counts.get('_total', 0)}[/bold]")
+        console.print(mix)
+
     console.print(f"[green]v3 SFT dataset:[/green] {out_path}")
 
 
